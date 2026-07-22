@@ -1,4 +1,4 @@
-const CACHE_NAME = "short-video-collection-v5";
+const CACHE_NAME = "short-video-collection-v7-coral-mint";
 const LOCAL_ASSETS = [
   "./",
   "./index.html",
@@ -30,11 +30,14 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
+
   event.respondWith(
-    fetch(event.request)
+    fetch(event.request, { cache: "no-store" })
       .then((response) => {
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
         return response;
       })
       .catch(() => caches.match(event.request).then((cached) => cached || caches.match("./index.html")))

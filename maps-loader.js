@@ -1,6 +1,8 @@
 import { CONFIG } from "./config.js";
 
-let mapsPromise;
+let loaderPromise;
+let mapLibrariesPromise;
+let placesLibraryPromise;
 
 function validateMapsConfig() {
   if (!CONFIG.googleMapsApiKey || CONFIG.googleMapsApiKey.startsWith("請填入_")) {
@@ -13,22 +15,27 @@ function validateMapsConfig() {
 
 export function loadGoogleMaps() {
   if (window.google?.maps?.importLibrary) return Promise.resolve(window.google.maps);
-  if (mapsPromise) return mapsPromise;
+  if (loaderPromise) return loaderPromise;
   validateMapsConfig();
-  mapsPromise = new Promise((resolve, reject) => {
-    const callbackName = "__shortVideoMapsReady";
-    const timer = window.setTimeout(() => reject(new Error("Google Maps 載入逾時。")), 20000);
+
+  loaderPromise = new Promise((resolve, reject) => {
+    const callbackName = `__shortVideoMapsReady_${Date.now()}`;
+    const timeoutId = window.setTimeout(() => {
+      reject(new Error("Google Maps 載入逾時，請檢查網路、API Key 與網站限制。"));
+    }, 25000);
+
     window[callbackName] = () => {
-      window.clearTimeout(timer);
+      window.clearTimeout(timeoutId);
       delete window[callbackName];
-      resolve(window.google.maps);
+      if (window.google?.maps?.importLibrary) resolve(window.google.maps);
+      else reject(new Error("Google Maps 已載入，但 importLibrary 無法使用。"));
     };
+
     const script = document.createElement("script");
     const params = new URLSearchParams({
       key: CONFIG.googleMapsApiKey,
       callback: callbackName,
       v: "weekly",
-      libraries: "places,marker",
       language: "zh-TW",
       region: "TW",
       loading: "async"
@@ -36,30 +43,49 @@ export function loadGoogleMaps() {
     script.src = `https://maps.googleapis.com/maps/api/js?${params.toString()}`;
     script.async = true;
     script.defer = true;
+    script.dataset.shortVideoMapsLoader = "true";
     script.onerror = () => {
-      window.clearTimeout(timer);
-      reject(new Error("Google Maps 載入失敗，請檢查 API Key 與網站限制。"));
+      window.clearTimeout(timeoutId);
+      delete window[callbackName];
+      loaderPromise = null;
+      reject(new Error("Google Maps 載入失敗，請檢查 API Key、API 限制與網站限制。"));
     };
     document.head.append(script);
   });
-  return mapsPromise;
+
+  return loaderPromise;
 }
 
-export async function loadMapLibraries() {
-  await loadGoogleMaps();
-  const [mapsLibrary, markerLibrary] = await Promise.all([
-    google.maps.importLibrary("maps"),
-    google.maps.importLibrary("marker")
-  ]);
-  return {
-    Map: mapsLibrary.Map,
-    InfoWindow: mapsLibrary.InfoWindow,
-    LatLngBounds: mapsLibrary.LatLngBounds,
-    AdvancedMarkerElement: markerLibrary.AdvancedMarkerElement
-  };
+export function loadMapLibraries() {
+  if (mapLibrariesPromise) return mapLibrariesPromise;
+  mapLibrariesPromise = (async () => {
+    await loadGoogleMaps();
+    const [mapsLibrary, markerLibrary] = await Promise.all([
+      window.google.maps.importLibrary("maps"),
+      window.google.maps.importLibrary("marker")
+    ]);
+    return {
+      Map: mapsLibrary.Map,
+      InfoWindow: mapsLibrary.InfoWindow,
+      LatLngBounds: mapsLibrary.LatLngBounds,
+      AdvancedMarkerElement: markerLibrary.AdvancedMarkerElement,
+      PinElement: markerLibrary.PinElement
+    };
+  })().catch((error) => {
+    mapLibrariesPromise = null;
+    throw error;
+  });
+  return mapLibrariesPromise;
 }
 
-export async function loadPlacesLibrary() {
-  await loadGoogleMaps();
-  return google.maps.importLibrary("places");
+export function loadPlacesLibrary() {
+  if (placesLibraryPromise) return placesLibraryPromise;
+  placesLibraryPromise = (async () => {
+    await loadGoogleMaps();
+    return window.google.maps.importLibrary("places");
+  })().catch((error) => {
+    placesLibraryPromise = null;
+    throw error;
+  });
+  return placesLibraryPromise;
 }

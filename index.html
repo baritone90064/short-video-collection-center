@@ -1,25 +1,1281 @@
 <!doctype html>
 <html lang="zh-Hant">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#f47b64" />
-    <meta name="description" content="收藏 Threads、Facebook、Instagram、小紅書等短影音連結，並在地圖查看附近收藏。" />
-    <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./styles.css" />
-    <title>短影音收藏中心</title>
-  </head>
-  <body>
-    <noscript>此 App 需要啟用 JavaScript。</noscript>
-    <div id="app">
-      <div class="boot-screen">
-        <div class="boot-logo" aria-hidden="true">▶</div>
-        <strong>短影音收藏中心</strong>
-        <span>正在準備你的收藏…</span>
-      </div>
-    </div>
-    <div id="toast-root" aria-live="polite" aria-atomic="true"></div>
-    <script type="module" src="./app.js"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#ff8b6a" />
+  <meta name="description" content="短影音收藏中心" />
+  <title>短影音收藏中心</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: "Noto Sans TC", "Microsoft JhengHei", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --bg: #fff8f1;
+      --surface: #ffffff;
+      --surface-soft: #fffdf9;
+      --coral: #ff8066;
+      --coral-deep: #df5f4d;
+      --coral-soft: #ffe5de;
+      --orange: #ffad2f;
+      --yellow: #ffd66b;
+      --mint: #63c9a6;
+      --mint-deep: #2f9a78;
+      --mint-soft: #ddf6ec;
+      --sky: #62afe9;
+      --purple: #8a77df;
+      --pink: #e96d9b;
+      --text: #383641;
+      --text-strong: #26242c;
+      --muted: #7b7784;
+      --line: #ece2d9;
+      --danger: #c84646;
+      --danger-soft: #ffe4e4;
+      --shadow: 0 10px 30px rgba(92, 61, 43, .10);
+      --shadow-float: 0 16px 36px rgba(255, 128, 102, .22);
+      --radius: 18px;
+      --radius-lg: 26px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); }
+    body { min-width: 320px; -webkit-font-smoothing: antialiased; }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    img { max-width: 100%; }
+    a { color: inherit; }
+    .hidden { display: none !important; }
+    .muted { color: var(--muted); }
+    .small { font-size: 12px; }
+
+    body::before, body::after {
+      content: "";
+      position: fixed;
+      z-index: -2;
+      width: 230px;
+      height: 230px;
+      border-radius: 999px;
+      filter: blur(4px);
+      opacity: .52;
+      pointer-events: none;
+    }
+    body::before { background: #ffe1d3; top: -90px; right: -90px; }
+    body::after { background: #d8f4e7; left: -110px; bottom: 80px; }
+
+    .boot, .login-page {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+    .boot-inner { display: grid; justify-items: center; gap: 12px; }
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      color: white;
+      background: linear-gradient(145deg, var(--coral), var(--orange));
+      box-shadow: var(--shadow-float);
+      transform: rotate(-4deg);
+    }
+    .boot .brand-mark { width: 76px; height: 76px; border-radius: 25px; font-size: 30px; }
+    .spinner {
+      width: 28px;
+      height: 28px;
+      border: 3px solid rgba(255,128,102,.2);
+      border-top-color: var(--coral);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .login-card {
+      width: min(430px, 100%);
+      padding: 30px 24px;
+      text-align: center;
+      background: rgba(255,255,255,.95);
+      border: 1px solid var(--line);
+      border-radius: 30px;
+      box-shadow: var(--shadow);
+    }
+    .login-card .brand-mark { width: 82px; height: 82px; border-radius: 26px; margin: 0 auto 18px; font-size: 32px; }
+    .login-card h1 { margin: 0; color: var(--text-strong); }
+    .login-card p { line-height: 1.7; color: var(--muted); }
+    .google-btn { width: 100%; margin-top: 12px; background: white; border-color: #d9d5d0; }
+
+    .app-shell { min-height: 100vh; padding-bottom: calc(88px + env(safe-area-inset-bottom)); }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      min-height: 64px;
+      padding: calc(9px + env(safe-area-inset-top)) 15px 9px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: rgba(255,248,241,.92);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(236,226,217,.92);
+    }
+    .top-title { display: flex; align-items: center; gap: 11px; min-width: 0; }
+    .top-title .brand-mark { width: 42px; height: 42px; border-radius: 14px; font-size: 16px; flex: 0 0 auto; }
+    .top-copy { min-width: 0; }
+    .top-copy strong { display: block; color: var(--text-strong); font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .top-copy small { display: block; margin-top: 1px; font-size: 11px; color: var(--muted); }
+    .page { width: min(1040px, 100%); margin: 0 auto; padding: 14px 14px 28px; }
+
+    .bottom-nav {
+      position: fixed;
+      z-index: 80;
+      left: 10px;
+      right: 10px;
+      bottom: calc(8px + env(safe-area-inset-bottom));
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4px;
+      padding: 7px;
+      border: 1px solid rgba(236,226,217,.95);
+      border-radius: 25px;
+      background: rgba(255,255,255,.97);
+      backdrop-filter: blur(18px);
+      box-shadow: 0 14px 34px rgba(91,59,43,.16);
+    }
+    .nav-item {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      min-height: 57px;
+      border-radius: 18px;
+      display: grid;
+      justify-items: center;
+      align-content: center;
+      gap: 2px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .nav-item svg { width: 23px; height: 23px; }
+    .nav-item.active { color: var(--coral-deep); background: var(--coral-soft); }
+    .nav-item.add-nav { color: white; background: linear-gradient(145deg, var(--coral), var(--orange)); box-shadow: 0 8px 18px rgba(255,128,102,.28); }
+    .nav-item:active { transform: scale(.97); }
+
+    .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .panel { padding: 16px; }
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 18px;
+      margin-bottom: 14px;
+      border-radius: 24px;
+      color: white;
+      background: linear-gradient(125deg, var(--coral), var(--orange) 62%, var(--yellow));
+      box-shadow: var(--shadow-float);
+    }
+    .hero::after { content: ""; position: absolute; width: 130px; height: 130px; border-radius: 50%; background: rgba(255,255,255,.20); right: -35px; top: -50px; }
+    .hero h1 { position: relative; z-index: 1; margin: 0; font-size: 24px; }
+    .hero p { position: relative; z-index: 1; margin: 7px 0 0; font-size: 14px; line-height: 1.6; }
+    .hero-stats { position: relative; z-index: 1; display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .hero-stat { padding: 7px 10px; background: rgba(255,255,255,.2); border-radius: 999px; font-size: 12px; font-weight: 800; }
+
+    .toolbar { display: flex; flex-wrap: wrap; gap: 9px; align-items: center; margin-bottom: 12px; }
+    .search-wrap { position: relative; flex: 1 1 220px; }
+    .search-wrap svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: var(--muted); }
+    .search-wrap input { padding-left: 39px; }
+    input, select, textarea {
+      width: 100%;
+      min-height: 44px;
+      border: 1px solid #e5d9cf;
+      border-radius: 13px;
+      background: #fffdfa;
+      color: var(--text);
+      padding: 10px 12px;
+      outline: none;
+    }
+    textarea { min-height: 96px; resize: vertical; }
+    input:focus, select:focus, textarea:focus { border-color: var(--coral); box-shadow: 0 0 0 4px rgba(255,128,102,.12); background: white; }
+    label.field { display: grid; gap: 6px; color: var(--text-strong); font-weight: 800; font-size: 14px; }
+    label.field small { color: var(--muted); font-weight: 400; line-height: 1.5; }
+    .form-grid { display: grid; gap: 13px; }
+    .form-grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .form-section { padding: 15px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface-soft); }
+    .section-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+    .section-title { display: flex; align-items: center; gap: 9px; }
+    .section-title h2, .section-title h3 { margin: 0; color: var(--text-strong); }
+    .section-icon { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 13px; color: var(--coral-deep); background: var(--coral-soft); }
+    .section-icon svg { width: 20px; height: 20px; }
+
+    .btn {
+      min-height: 42px;
+      padding: 9px 13px;
+      border: 1px solid transparent;
+      border-radius: 13px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      font-weight: 800;
+      text-decoration: none;
+    }
+    .btn svg { width: 17px; height: 17px; }
+    .btn-primary { color: white; background: linear-gradient(135deg, var(--coral), var(--orange)); box-shadow: 0 8px 18px rgba(255,128,102,.22); }
+    .btn-secondary { color: var(--text); background: white; border-color: var(--line); }
+    .btn-soft { color: var(--mint-deep); background: var(--mint-soft); }
+    .btn-danger { color: var(--danger); background: var(--danger-soft); }
+    .btn-icon { width: 40px; min-width: 40px; padding: 0; }
+    .btn-small { min-height: 34px; padding: 6px 10px; border-radius: 11px; font-size: 12px; }
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+    .form-actions { display: flex; justify-content: flex-end; gap: 9px; flex-wrap: wrap; margin-top: 15px; }
+
+    .chips { display: flex; gap: 7px; overflow-x: auto; padding: 2px 0 8px; }
+    .chip { flex: 0 0 auto; border: 1px solid var(--line); background: white; color: var(--muted); padding: 7px 11px; border-radius: 999px; font-size: 12px; font-weight: 800; }
+    .chip.active { color: white; background: var(--chip-color, var(--coral)); border-color: transparent; }
+
+    .bookmark-list { display: grid; gap: 10px; }
+    .bookmark-row {
+      display: grid;
+      grid-template-columns: 88px minmax(0, 1fr);
+      gap: 11px;
+      padding: 10px;
+      overflow: hidden;
+    }
+    .bookmark-thumb {
+      width: 88px;
+      height: 88px;
+      border-radius: 15px;
+      overflow: hidden;
+      background: #f2eee9;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+    }
+    .bookmark-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .platform-fallback { width: 100%; height: 100%; display: grid; place-content: center; justify-items: center; gap: 5px; color: white; background: linear-gradient(145deg, var(--coral), var(--orange)); font-weight: 900; }
+    .platform-fallback span:first-child { font-size: 22px; }
+    .platform-fallback span:last-child { font-size: 10px; opacity: .9; }
+    .bookmark-content { min-width: 0; display: grid; gap: 5px; align-content: start; }
+    .bookmark-title { margin: 0; color: var(--text-strong); font-size: 15px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .bookmark-meta { display: flex; flex-wrap: wrap; gap: 5px 8px; color: var(--muted); font-size: 11px; }
+    .meta-item { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
+    .meta-item svg { width: 13px; height: 13px; flex: 0 0 auto; }
+    .category-pill { display: inline-flex; align-items: center; gap: 5px; color: var(--category-color); font-weight: 800; }
+    .tag-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-size: 11px; }
+    .bookmark-actions { display: flex; gap: 6px; margin-top: 2px; }
+    .bookmark-actions .btn { min-height: 32px; padding: 5px 9px; font-size: 11px; }
+    .bookmark-actions .btn-icon { width: 32px; min-width: 32px; padding: 0; }
+
+    .empty { padding: 34px 18px; text-align: center; color: var(--muted); }
+    .empty svg { width: 46px; height: 46px; color: var(--mint); margin: 0 auto 10px; }
+
+    .form-card { overflow: hidden; }
+    .form-banner { padding: 17px; color: white; background: linear-gradient(120deg, var(--coral), var(--orange)); }
+    .form-banner h2 { margin: 0; font-size: 20px; }
+    .form-banner p { margin: 5px 0 0; font-size: 13px; opacity: .95; }
+    .form-body { padding: 14px; }
+    .place-tools { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .place-picker { margin-top: 12px; border: 1px solid #cfe9de; border-radius: 18px; overflow: hidden; background: #edf7f2; }
+    .place-search { padding: 10px; background: #f7fcf9; border-bottom: 1px solid #cfe9de; }
+    .place-map { min-height: 310px; background: #edf4f0; }
+    .coordinate-note { margin: 9px 0 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+
+    .map-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+    .map-toolbar select { width: auto; min-width: 105px; }
+    .map-shell { position: relative; overflow: hidden; border: 1px solid var(--line); border-radius: 20px; background: #eaf3ee; box-shadow: var(--shadow); }
+    .map-canvas { min-height: min(62vh, 600px); }
+    .map-status { position: absolute; z-index: 5; left: 12px; right: 12px; top: 12px; display: none; padding: 10px 12px; border-radius: 14px; background: rgba(255,255,255,.94); box-shadow: var(--shadow); font-size: 13px; }
+    .map-status.show { display: block; }
+    .map-sheet { margin-top: 10px; padding: 14px; min-height: 74px; }
+    .map-sheet h3 { margin: 0 0 5px; color: var(--text-strong); }
+    .map-sheet p { margin: 3px 0; font-size: 12px; color: var(--muted); }
+    .map-sheet-actions { display: flex; gap: 7px; margin-top: 9px; }
+
+    .category-add { display: grid; grid-template-columns: minmax(0,1fr) 54px auto; gap: 8px; align-items: end; margin-bottom: 13px; }
+    .color-input { width: 54px; padding: 5px; }
+    .category-list { display: grid; gap: 9px; }
+    .category-row { display: grid; grid-template-columns: 42px minmax(0,1fr) auto auto; gap: 8px; align-items: center; padding: 10px; border: 1px solid var(--line); border-radius: 15px; background: var(--surface-soft); }
+    .category-icon { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 13px; color: white; background: var(--category-color); }
+    .category-icon svg { width: 21px; height: 21px; }
+    .category-name { min-width: 0; }
+    .category-name strong { display: block; color: var(--text-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .category-name small { color: var(--muted); }
+    .logout-wrap { display: flex; justify-content: center; margin-top: 18px; }
+
+    .modal-backdrop { position: fixed; inset: 0; z-index: 200; display: grid; place-items: end center; background: rgba(38,36,44,.42); padding: 14px; }
+    .modal { width: min(520px, 100%); max-height: 86vh; overflow: auto; padding: 18px; border-radius: 24px 24px 18px 18px; background: white; box-shadow: 0 22px 60px rgba(0,0,0,.24); }
+    .modal h3 { margin: 0 0 14px; color: var(--text-strong); }
+
+    .alert { padding: 11px 13px; border-radius: 13px; font-size: 13px; line-height: 1.55; }
+    .alert-error { color: var(--danger); background: var(--danger-soft); }
+    .alert-success { color: var(--mint-deep); background: var(--mint-soft); }
+    #toast-root { position: fixed; z-index: 300; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(92vw, 430px); pointer-events: none; }
+    .toast { margin-top: 8px; padding: 11px 14px; border-radius: 14px; color: white; background: #3b3943; box-shadow: var(--shadow); font-size: 13px; animation: toast-in .18s ease; }
+    .toast.success { background: var(--mint-deep); }
+    .toast.error { background: var(--danger); }
+    @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
+
+    @media (max-width: 640px) {
+      .page { padding: 12px 11px 22px; }
+      .form-grid.two { grid-template-columns: 1fr; }
+      .bookmark-row { grid-template-columns: 82px minmax(0,1fr); gap: 9px; padding: 9px; }
+      .bookmark-thumb { width: 82px; height: 82px; border-radius: 14px; }
+      .category-add { grid-template-columns: minmax(0,1fr) 50px; }
+      .category-add .btn { grid-column: 1 / -1; }
+      .category-row { grid-template-columns: 38px minmax(0,1fr) auto auto; padding: 9px; }
+      .category-icon { width: 38px; height: 38px; }
+      .map-canvas { min-height: 58vh; }
+      .place-map { min-height: 280px; }
+      .form-actions .btn { flex: 1 1 120px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="boot"><div class="boot-inner"><div class="brand-mark">▶</div><strong>短影音收藏中心</strong><div class="spinner"></div></div></div>
+  </div>
+  <div id="toast-root" aria-live="polite"></div>
+
+  <script>
+    // 新版改為不使用 Service Worker，避免手機一直讀到舊版程式。
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistrations().then((items) => items.forEach((item) => item.unregister())).catch(() => {});
+    }
+    if ("caches" in window) {
+      caches.keys().then((keys) => keys.forEach((key) => caches.delete(key))).catch(() => {});
+    }
+  </script>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+    import {
+      browserLocalPersistence,
+      getAuth,
+      GoogleAuthProvider,
+      onAuthStateChanged,
+      setPersistence,
+      signInWithPopup,
+      signOut
+    } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+    import {
+      addDoc,
+      collection,
+      deleteDoc,
+      doc,
+      endAt,
+      getDocs,
+      getFirestore,
+      limit,
+      orderBy,
+      query,
+      serverTimestamp,
+      startAt,
+      updateDoc,
+      where,
+      writeBatch
+    } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+    import {
+      distanceBetween,
+      geohashForLocation,
+      geohashQueryBounds
+    } from "https://cdn.jsdelivr.net/npm/geofire-common@6.0.0/+esm";
+
+    /* =============================================================================================
+       只需要修改這一段 CONFIG。Firebase 與 Google Maps 資料都集中在 index.html 裡。
+       ============================================================================================= */
+    const CONFIG = {
+      firebase: {
+        apiKey: "AIzaSyDFbx6even_CvSXgR3JUyyDW7cbP45b244",
+        authDomain: "short-video-collection-c-1940a.firebaseapp.com",
+        projectId: "short-video-collection-c-1940a",
+        storageBucket: "short-video-collection-c-1940a.firebasestorage.app",
+        messagingSenderId: "774442944506",
+        appId: "1:774442944506:web:a88d94665ccac05ee4c643"
+      },
+      googleMapsApiKey: "AIzaSyA4-xRZrDzb63hj6nmhRjQjkerd2Dmlho0",
+      googleMapsMapId: "d4056d4f23c4e1a4fb2b395b",
+      sharedWorkspaceId: "shared",
+      allowedEmails: [
+        "baritone90064@gmail.com",
+        "terry4410@gmail.com"
+      ],
+      defaultCenter: { latitude: 25.0478, longitude: 121.5319 },
+      defaultRadiusKm: 20,
+      pageSize: 500
+    };
+
+    const ICON_PATHS = {
+      home: '<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10.5V20h13v-9.5"/><path d="M9.5 20v-6h5v6"/>',
+      map: '<path d="m9 18-6 3V6l6-3 6 3 6-3v15l-6 3-6-3Z"/><path d="M9 3v15M15 6v15"/>',
+      plus: '<path d="M12 5v14M5 12h14"/>',
+      user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+      search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
+      play: '<path d="m9 7 8 5-8 5V7Z"/>',
+      edit: '<path d="M4 20h4l11-11-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/>',
+      trash: '<path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/>',
+      external: '<path d="M14 4h6v6M20 4l-9 9"/><path d="M18 13v7H4V6h7"/>',
+      navigation: '<path d="m5 4 14 7-6 2-2 6L5 4Z"/>',
+      location: '<path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/>',
+      tag: '<path d="M20 13 13 20 4 11V4h7l9 9Z"/><circle cx="8.5" cy="8.5" r="1"/>',
+      link: '<path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.2 1.2"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.2-1.2"/>',
+      settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/>',
+      logout: '<path d="M10 4H5v16h5M14 8l4 4-4 4M18 12H9"/>',
+      check: '<path d="m5 12 4 4L19 6"/>',
+      compass: '<circle cx="12" cy="12" r="9"/><path d="m15 9-2 4-4 2 2-4 4-2Z"/>',
+      scenic: '<path d="M3 19h18L15 9l-3 4-2-3-7 9Z"/><circle cx="17" cy="6" r="2"/>',
+      restaurant: '<path d="M7 3v8M4 3v5a3 3 0 0 0 6 0V3M7 11v10M16 3v18M16 3c3 2 4 5 4 8h-4"/>',
+      lodging: '<path d="M3 12v8M21 12v8M3 17h18M6 12V7h6a4 4 0 0 1 4 4v1M6 12h15"/>',
+      shopping: '<path d="M5 8h14l-1 13H6L5 8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
+      knowledge: '<path d="M9 18h6M10 22h4"/><path d="M8.5 15.5A7 7 0 1 1 15.5 15.5C14.5 16.3 14 17 14 18h-4c0-1-.5-1.7-1.5-2.5Z"/>',
+      learning: '<path d="m3 10 9-5 9 5-9 5-9-5Z"/><path d="M7 13v4c3 2 7 2 10 0v-4M21 10v6"/>',
+      ai: '<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M9 9h.01M15 9h.01M8 15c2.5 2 5.5 2 8 0M12 1v3M12 20v3M1 12h3M20 12h3"/>',
+      work: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V4h6v3M3 12h18M10 12v2h4v-2"/>',
+      health: '<path d="M12 21S4 16 4 9a4 4 0 0 1 7-2.6L12 7.5l1-1.1A4 4 0 0 1 20 9c0 7-8 12-8 12Z"/><path d="M7.5 12h2l1-2 2.2 5 1.3-3h2.5"/>',
+      entertainment: '<rect x="3" y="5" width="18" height="15" rx="2"/><path d="m8 2 2 3M14 2l-2 3M8 10l7 3-7 3v-6Z"/>',
+      sparkles: '<path d="m12 3 1.2 3.8L17 8l-3.8 1.2L12 13l-1.2-3.8L7 8l3.8-1.2L12 3ZM5 14l.8 2.2L8 17l-2.2.8L5 20l-.8-2.2L2 17l2.2-.8L5 14ZM19 13l.8 2.2L22 16l-2.2.8L19 19l-.8-2.2L16 16l2.2-.8L19 13Z"/>',
+      other: '<circle cx="12" cy="12" r="9"/><path d="M8 12h.01M12 12h.01M16 12h.01"/>'
+    };
+
+    const ICON_OPTIONS = [
+      ["scenic", "景點"], ["restaurant", "餐廳"], ["lodging", "住宿"], ["shopping", "購物"],
+      ["knowledge", "知識"], ["learning", "學習"], ["ai", "AI工具"], ["work", "工作"],
+      ["health", "健康"], ["entertainment", "娛樂"], ["sparkles", "靈感"], ["other", "其他"]
+    ];
+
+    const DEFAULT_CATEGORIES = [
+      ["scenic", "景點", "scenic", "#ef6f9a"],
+      ["restaurant", "餐廳", "restaurant", "#5eb7ae"],
+      ["lodging", "住宿", "lodging", "#8a77df"],
+      ["shopping", "購物", "shopping", "#ffad2f"],
+      ["knowledge", "知識", "knowledge", "#62afe9"],
+      ["learning", "學習", "learning", "#6fbd83"],
+      ["ai", "AI工具", "ai", "#8a77df"],
+      ["work", "工作", "work", "#5f88c8"],
+      ["health", "健康", "health", "#ef7f70"],
+      ["entertainment", "娛樂", "entertainment", "#e96d9b"],
+      ["other", "其他", "other", "#9a96a1"]
+    ];
+
+    const PLATFORM_META = {
+      threads: { label: "Threads", short: "Th" },
+      instagram: { label: "Instagram", short: "IG" },
+      facebook: { label: "Facebook", short: "FB" },
+      xiaohongshu: { label: "小紅書", short: "小" },
+      tiktok: { label: "TikTok", short: "TT" },
+      youtube: { label: "YouTube", short: "YT" },
+      other: { label: "其他", short: "▶" }
+    };
+
+    const appRoot = document.querySelector("#app");
+    const toastRoot = document.querySelector("#toast-root");
+    const state = {
+      user: null,
+      categories: [],
+      bookmarks: [],
+      loaded: false,
+      loadingPromise: null,
+      cleanup: []
+    };
+
+    function escapeHtml(value = "") {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function icon(name, className = "") {
+      const paths = ICON_PATHS[name] || ICON_PATHS.other;
+      return `<svg class="${escapeHtml(className)}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+    }
+
+    function showToast(message, type = "") {
+      const node = document.createElement("div");
+      node.className = `toast ${type}`;
+      node.textContent = message;
+      toastRoot.append(node);
+      setTimeout(() => node.remove(), 3200);
+    }
+
+    function confirmDialog(message) { return window.confirm(message); }
+
+    function normalizeEmail(value) { return String(value || "").trim().toLowerCase(); }
+    function isAllowedEmail(email) {
+      return CONFIG.allowedEmails.map(normalizeEmail).includes(normalizeEmail(email));
+    }
+
+    function validateConfig() {
+      const values = [...Object.values(CONFIG.firebase), CONFIG.googleMapsApiKey, CONFIG.googleMapsMapId];
+      if (values.some((value) => !value || String(value).startsWith("請填入_"))) {
+        throw new Error("請先在 index.html 的 CONFIG 填入 Firebase 與 Google Maps 設定值。");
+      }
+    }
+
+    validateConfig();
+
+    const firebaseApp = initializeApp(CONFIG.firebase);
+    const auth = getAuth(firebaseApp);
+    const db = getFirestore(firebaseApp);
+    const googleProvider = new GoogleAuthProvider();
+    googleProvider.setCustomParameters({ prompt: "select_account" });
+    await setPersistence(auth, browserLocalPersistence);
+
+    const categoriesRef = () => collection(db, "workspaces", CONFIG.sharedWorkspaceId, "categories");
+    const bookmarksRef = () => collection(db, "workspaces", CONFIG.sharedWorkspaceId, "bookmarks");
+
+    function withId(snapshot) { return snapshot.docs.map((item) => ({ id: item.id, ...item.data() })); }
+
+    async function seedCategories() {
+      const existing = await getDocs(query(categoriesRef(), limit(1)));
+      if (!existing.empty) return;
+      const batch = writeBatch(db);
+      DEFAULT_CATEGORIES.forEach(([id, name, iconName, color], index) => {
+        batch.set(doc(categoriesRef(), id), {
+          name,
+          icon: iconName,
+          color,
+          sortOrder: index,
+          system: id === "other",
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+      });
+      await batch.commit();
+    }
+
+    async function loadCoreData(force = false) {
+      if (state.loaded && !force) return;
+      if (state.loadingPromise && !force) return state.loadingPromise;
+      state.loadingPromise = (async () => {
+        await seedCategories();
+        const [categorySnapshot, bookmarkSnapshot] = await Promise.all([
+          getDocs(query(categoriesRef(), orderBy("sortOrder", "asc"))),
+          getDocs(query(bookmarksRef(), orderBy("createdAt", "desc"), limit(CONFIG.pageSize)))
+        ]);
+        state.categories = withId(categorySnapshot);
+        state.bookmarks = withId(bookmarkSnapshot);
+        state.loaded = true;
+      })().finally(() => { state.loadingPromise = null; });
+      return state.loadingPromise;
+    }
+
+    async function findDuplicate(normalizedUrl) {
+      if (!normalizedUrl) return null;
+      const snapshot = await getDocs(query(bookmarksRef(), where("normalizedUrl", "==", normalizedUrl), limit(1)));
+      return snapshot.empty ? null : { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+    }
+
+    async function createBookmark(data) {
+      const result = await addDoc(bookmarksRef(), { ...data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+      return result.id;
+    }
+
+    async function updateBookmark(id, data) {
+      await updateDoc(doc(db, "workspaces", CONFIG.sharedWorkspaceId, "bookmarks", id), { ...data, updatedAt: serverTimestamp() });
+    }
+
+    async function deleteBookmark(id) {
+      await deleteDoc(doc(db, "workspaces", CONFIG.sharedWorkspaceId, "bookmarks", id));
+    }
+
+    async function addCategory(data) {
+      const result = await addDoc(categoriesRef(), {
+        ...data,
+        sortOrder: state.categories.length,
+        system: false,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      return result.id;
+    }
+
+    async function updateCategory(id, data) {
+      await updateDoc(doc(db, "workspaces", CONFIG.sharedWorkspaceId, "categories", id), { ...data, updatedAt: serverTimestamp() });
+    }
+
+    async function deleteCategory(id) {
+      const used = await getDocs(query(bookmarksRef(), where("categoryId", "==", id), limit(1)));
+      if (!used.empty) throw new Error("這個分類仍有收藏使用中。請先逐筆修改收藏分類，或直接修改分類名稱。");
+      await deleteDoc(doc(db, "workspaces", CONFIG.sharedWorkspaceId, "categories", id));
+    }
+
+    async function queryNearby(center, radiusKm) {
+      const bounds = geohashQueryBounds([Number(center.latitude), Number(center.longitude)], Number(radiusKm) * 1000);
+      const snapshots = await Promise.all(bounds.map(([start, end]) => getDocs(
+        query(bookmarksRef(), orderBy("location.geohash"), startAt(start), endAt(end))
+      )));
+      const unique = new Map();
+      snapshots.forEach((snapshot) => snapshot.docs.forEach((item) => {
+        const bookmark = { id: item.id, ...item.data() };
+        if (bookmark.hasLocation && bookmark.location?.latitude != null && bookmark.location?.longitude != null) unique.set(bookmark.id, bookmark);
+      }));
+      return [...unique.values()].map((bookmark) => ({
+        ...bookmark,
+        distanceKm: distanceBetween(
+          [center.latitude, center.longitude],
+          [Number(bookmark.location.latitude), Number(bookmark.location.longitude)]
+        )
+      })).filter((bookmark) => bookmark.distanceKm <= radiusKm).sort((a, b) => a.distanceKm - b.distanceKm);
+    }
+
+    function normalizeUrl(value) {
+      const raw = String(value || "").trim();
+      if (!raw) return "";
+      try {
+        const url = new URL(raw);
+        url.hash = "";
+        [...url.searchParams.keys()].forEach((key) => {
+          if (key.startsWith("utm_") || ["fbclid", "gclid", "igsh", "mibextid"].includes(key)) url.searchParams.delete(key);
+        });
+        return url.toString().replace(/\/$/, "");
+      } catch { return raw; }
+    }
+
+    function detectPlatform(value) {
+      try {
+        const host = new URL(value).hostname.toLowerCase();
+        if (host.includes("threads.net")) return "threads";
+        if (host.includes("instagram.com")) return "instagram";
+        if (host.includes("facebook.com") || host.includes("fb.watch")) return "facebook";
+        if (host.includes("xiaohongshu.com") || host.includes("xhslink.com")) return "xiaohongshu";
+        if (host.includes("tiktok.com")) return "tiktok";
+        if (host.includes("youtube.com") || host.includes("youtu.be")) return "youtube";
+      } catch {}
+      return "other";
+    }
+
+    function inferThumbnailUrl(url, platform) {
+      if (platform !== "youtube") return "";
+      try {
+        const parsed = new URL(url);
+        let videoId = "";
+        if (parsed.hostname.includes("youtu.be")) videoId = parsed.pathname.split("/").filter(Boolean)[0] || "";
+        if (parsed.hostname.includes("youtube.com")) {
+          videoId = parsed.searchParams.get("v") || "";
+          if (!videoId && parsed.pathname.includes("/shorts/")) videoId = parsed.pathname.split("/shorts/")[1]?.split("/")[0] || "";
+        }
+        return videoId ? `https://i.ytimg.com/vi/${encodeURIComponent(videoId)}/hqdefault.jpg` : "";
+      } catch { return ""; }
+    }
+
+    function parseTags(value) {
+      return [...new Set(String(value || "").split(/[,，\n]/).map((item) => item.trim().replace(/^#/, "")).filter(Boolean))].slice(0, 20);
+    }
+
+    function formatDate(value) {
+      const date = value?.toDate ? value.toDate() : value instanceof Date ? value : value ? new Date(value) : null;
+      if (!date || Number.isNaN(date.getTime())) return "";
+      return new Intl.DateTimeFormat("zh-TW", { year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+    }
+
+    function platformMeta(platform) { return PLATFORM_META[platform] || PLATFORM_META.other; }
+    function categoryMap() { return new Map(state.categories.map((item) => [item.id, item])); }
+    function categoryColor(category = {}) { return /^#[0-9a-f]{6}$/i.test(String(category.color || "")) ? category.color : "#9a96a1"; }
+    function categoryIconName(category = {}) { return ICON_PATHS[category.icon] ? category.icon : "other"; }
+
+    function getCurrentPosition() {
+      if (!navigator.geolocation) return Promise.reject(new Error("此瀏覽器不支援定位功能。"));
+      return new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(
+        (position) => resolve({ latitude: position.coords.latitude, longitude: position.coords.longitude }),
+        (error) => reject(new Error({ 1: "定位權限被拒絕，請在瀏覽器設定中允許定位。", 2: "目前無法取得位置。", 3: "取得位置逾時。" }[error.code] || "無法取得目前位置。")),
+        { enableHighAccuracy: false, timeout: 12000, maximumAge: 120000 }
+      ));
+    }
+
+    function cleanups() {
+      state.cleanup.splice(0).forEach((callback) => { try { callback(); } catch {} });
+    }
+
+    function route() {
+      const [path, id] = (location.hash || "#/home").replace(/^#\//, "").split("/");
+      return { path: path || "home", id: id || "" };
+    }
+
+    function go(path) { location.hash = `#/${String(path).replace(/^#?\/?/, "")}`; }
+
+    function nav(active) {
+      const items = [
+        ["home", "home", "收藏", ""],
+        ["add", "plus", "新增", "add-nav"],
+        ["map", "map", "地圖", ""],
+        ["settings", "user", "我的", ""]
+      ];
+      return items.map(([key, iconName, label, extra]) => `<button class="nav-item ${active === key ? "active" : ""} ${extra}" data-nav="${key}">${icon(iconName)}<span>${label}</span></button>`).join("");
+    }
+
+    function shell({ title, subtitle = "", active, content }) {
+      appRoot.innerHTML = `<div class="app-shell">
+        <header class="topbar"><div class="top-title"><div class="brand-mark">▶</div><div class="top-copy"><strong>${escapeHtml(title)}</strong>${subtitle ? `<small>${escapeHtml(subtitle)}</small>` : ""}</div></div></header>
+        <main class="page">${content}</main>
+        <nav class="bottom-nav">${nav(active)}</nav>
+      </div>`;
+      document.querySelectorAll("[data-nav]").forEach((button) => button.addEventListener("click", () => go(button.dataset.nav)));
+    }
+
+    function renderLogin(error = "") {
+      cleanups();
+      appRoot.innerHTML = `<div class="login-page"><section class="login-card"><div class="brand-mark">▶</div><h1>短影音收藏中心</h1><p>共同收藏短影音、分類整理，並在地圖查看附近景點與餐廳。</p>${error ? `<div class="alert alert-error">${escapeHtml(error)}</div>` : ""}<button id="login" class="btn google-btn">G　使用 Google 帳號登入</button></section></div>`;
+      document.querySelector("#login").addEventListener("click", async (event) => {
+        try {
+          event.currentTarget.disabled = true;
+          await signInWithPopup(auth, googleProvider);
+        } catch (loginError) {
+          console.error(loginError);
+          renderLogin(loginError?.message || "登入失敗。");
+        }
+      });
+    }
+
+    function categoryOptions(selected = "") {
+      return state.categories.map((category) => `<option value="${escapeHtml(category.id)}" ${category.id === selected ? "selected" : ""}>${escapeHtml(category.name)}</option>`).join("");
+    }
+
+    function iconOptions(selected = "other") {
+      return ICON_OPTIONS.map(([value, label]) => `<option value="${value}" ${value === selected ? "selected" : ""}>${label}</option>`).join("");
+    }
+
+    function fallbackThumb(platform) {
+      const meta = platformMeta(platform);
+      return `<div class="platform-fallback"><span>${escapeHtml(meta.short)}</span><span>${escapeHtml(meta.label)}</span></div>`;
+    }
+
+    function bookmarkRow(bookmark) {
+      const categories = categoryMap();
+      const category = categories.get(bookmark.categoryId) || { name: "其他", icon: "other", color: "#9a96a1" };
+      const image = bookmark.thumbnailUrl ? `<img src="${escapeHtml(bookmark.thumbnailUrl)}" alt="" loading="lazy" data-thumb-platform="${escapeHtml(bookmark.platform)}" />` : fallbackThumb(bookmark.platform);
+      return `<article class="bookmark-row card">
+        <div class="bookmark-thumb">${image}</div>
+        <div class="bookmark-content">
+          <h3 class="bookmark-title">${escapeHtml(bookmark.title || "未命名收藏")}</h3>
+          <div class="bookmark-meta">
+            <span class="category-pill" style="--category-color:${escapeHtml(categoryColor(category))}">${icon(categoryIconName(category))}${escapeHtml(category.name)}</span>
+            <span class="meta-item">${escapeHtml(platformMeta(bookmark.platform).label)}</span>
+            ${bookmark.location?.placeName ? `<span class="meta-item">${icon("location")}${escapeHtml(bookmark.location.placeName)}</span>` : ""}
+            ${bookmark.createdAt ? `<span class="meta-item">${formatDate(bookmark.createdAt)}</span>` : ""}
+          </div>
+          ${bookmark.tags?.length ? `<div class="tag-line">${bookmark.tags.map((tag) => `#${escapeHtml(tag)}`).join("　")}</div>` : ""}
+          <div class="bookmark-actions">
+            <a class="btn btn-small btn-soft" href="${escapeHtml(bookmark.url)}" target="_blank" rel="noreferrer">${icon("play")}開啟</a>
+            <button class="btn btn-small btn-secondary" data-edit-bookmark="${bookmark.id}">${icon("edit")}編輯</button>
+            <button class="btn btn-small btn-icon btn-danger" data-delete-bookmark="${bookmark.id}" aria-label="刪除">${icon("trash")}</button>
+          </div>
+        </div>
+      </article>`;
+    }
+
+    function bindBookmarkRows(refresh) {
+      document.querySelectorAll("img[data-thumb-platform]").forEach((image) => image.addEventListener("error", () => { image.parentElement.innerHTML = fallbackThumb(image.dataset.thumbPlatform); }, { once: true }));
+      document.querySelectorAll("[data-edit-bookmark]").forEach((button) => button.addEventListener("click", () => go(`edit/${button.dataset.editBookmark}`)));
+      document.querySelectorAll("[data-delete-bookmark]").forEach((button) => button.addEventListener("click", async () => {
+        const bookmark = state.bookmarks.find((item) => item.id === button.dataset.deleteBookmark);
+        if (!bookmark || !confirmDialog(`確定刪除「${bookmark.title}」？`)) return;
+        try {
+          button.disabled = true;
+          await deleteBookmark(bookmark.id);
+          state.bookmarks = state.bookmarks.filter((item) => item.id !== bookmark.id);
+          showToast("收藏已刪除。", "success");
+          refresh();
+        } catch (error) { showToast(error?.message || "刪除失敗。", "error"); button.disabled = false; }
+      }));
+    }
+
+    async function renderHome() {
+      cleanups();
+      await loadCoreData();
+      const local = { search: "", categoryId: "", sort: "newest" };
+      shell({
+        title: "我的收藏",
+        subtitle: "手機快速瀏覽與整理",
+        active: "home",
+        content: `<section class="hero"><h1>今天想看什麼？</h1><p>快速找到已收藏的景點、餐廳、知識與生活靈感。</p><div class="hero-stats"><span class="hero-stat">${state.bookmarks.length} 筆收藏</span><span class="hero-stat">${state.bookmarks.filter((item) => item.hasLocation).length} 個地點</span><span class="hero-stat">${state.categories.length} 個分類</span></div></section>
+          <div class="toolbar"><div class="search-wrap">${icon("search")}<input id="home-search" type="search" placeholder="搜尋標題、標籤、備註或地點" /></div><select id="home-sort" style="width:auto"><option value="newest">最新加入</option><option value="name">名稱排序</option></select></div>
+          <div class="chips"><button class="chip active" data-filter="">全部</button>${state.categories.map((category) => `<button class="chip" style="--chip-color:${escapeHtml(categoryColor(category))}" data-filter="${category.id}">${escapeHtml(category.name)}</button>`).join("")}</div>
+          <div id="bookmark-list" class="bookmark-list"></div>`
+      });
+
+      const list = document.querySelector("#bookmark-list");
+      const refresh = () => {
+        let records = [...state.bookmarks];
+        if (local.categoryId) records = records.filter((item) => item.categoryId === local.categoryId);
+        const keyword = local.search.toLowerCase();
+        if (keyword) records = records.filter((item) => [item.title, item.note, item.location?.placeName, item.location?.address, ...(item.tags || [])].join(" ").toLowerCase().includes(keyword));
+        if (local.sort === "name") records.sort((a, b) => String(a.title || "").localeCompare(String(b.title || ""), "zh-Hant"));
+        else records.sort((a, b) => {
+          const ta = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+          const tb = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+          return tb - ta;
+        });
+        list.innerHTML = records.length ? records.map(bookmarkRow).join("") : `<div class="card empty">${icon("sparkles")}<p>目前沒有符合條件的收藏。</p></div>`;
+        bindBookmarkRows(refresh);
+      };
+
+      document.querySelector("#home-search").addEventListener("input", (event) => { local.search = event.target.value.trim(); refresh(); });
+      document.querySelector("#home-sort").addEventListener("change", (event) => { local.sort = event.target.value; refresh(); });
+      document.querySelectorAll("[data-filter]").forEach((button) => button.addEventListener("click", () => {
+        local.categoryId = button.dataset.filter;
+        document.querySelectorAll("[data-filter]").forEach((item) => item.classList.toggle("active", item === button));
+        refresh();
+      }));
+      refresh();
+    }
+
+    let mapsPromise = null;
+    function loadGoogleMaps() {
+      if (window.google?.maps?.places) return Promise.resolve(window.google.maps);
+      if (mapsPromise) return mapsPromise;
+      mapsPromise = new Promise((resolve, reject) => {
+        const callback = `__mapsReady_${Date.now()}`;
+        const timer = setTimeout(() => reject(new Error("Google 地圖載入逾時，請檢查 API Key 與網站限制。")), 25000);
+        window[callback] = () => {
+          clearTimeout(timer);
+          delete window[callback];
+          if (window.google?.maps?.places) resolve(window.google.maps);
+          else reject(new Error("Google 地圖已載入，但 Places 程式庫無法使用。"));
+        };
+        const script = document.createElement("script");
+        const params = new URLSearchParams({
+          key: CONFIG.googleMapsApiKey,
+          libraries: "places",
+          v: "quarterly",
+          language: "zh-TW",
+          region: "TW",
+          callback,
+          loading: "async"
+        });
+        script.src = `https://maps.googleapis.com/maps/api/js?${params.toString()}`;
+        script.async = true;
+        script.defer = true;
+        script.onerror = () => { clearTimeout(timer); mapsPromise = null; reject(new Error("Google 地圖載入失敗。")); };
+        document.head.append(script);
+      });
+      return mapsPromise;
+    }
+
+    function locationSection(place = {}) {
+      return `<section class="form-section">
+        <div class="section-head"><div class="section-title"><span class="section-icon" style="background:var(--mint-soft);color:var(--mint-deep)">${icon("location")}</span><div><h3>地點資訊</h3><small class="muted">選填；有座標才會顯示在地圖</small></div></div></div>
+        <div class="form-grid two">
+          <label class="field">地點名稱<input id="place-name" value="${escapeHtml(place.placeName || "")}" placeholder="例如：雙流國家森林遊樂區" /></label>
+          <label class="field">地址<input id="place-address" value="${escapeHtml(place.address || "")}" placeholder="戶外地點可留空" /></label>
+          <label class="field">緯度 Latitude<input id="place-latitude" inputmode="decimal" value="${place.latitude ?? ""}" placeholder="例如：25.0478" /></label>
+          <label class="field">經度 Longitude<input id="place-longitude" inputmode="decimal" value="${place.longitude ?? ""}" placeholder="例如：121.5319" /></label>
+        </div>
+        <div class="place-tools"><button type="button" class="btn btn-soft" id="open-place-picker">${icon("search")}搜尋地點與地圖選點</button><button type="button" class="btn btn-secondary" id="use-current-place">${icon("compass")}使用目前位置</button><button type="button" class="btn btn-danger" id="clear-place">${icon("trash")}清除地點</button></div>
+        <div id="place-picker" class="place-picker hidden"><div class="place-search"><input id="place-search-input" placeholder="搜尋店家、景點、地址或 Plus Code" autocomplete="off" /></div><div id="place-map" class="place-map"></div></div>
+        <p class="coordinate-note">搜尋結果或點選地圖後，緯度與經度會自動填入；戶外地點沒有地址也可以儲存。</p>
+      </section>`;
+    }
+
+    async function initPlacePicker(placeState) {
+      await loadGoogleMaps();
+      const mapNode = document.querySelector("#place-map");
+      const searchInput = document.querySelector("#place-search-input");
+      const initial = Number.isFinite(Number(placeState.latitude)) && Number.isFinite(Number(placeState.longitude))
+        ? { lat: Number(placeState.latitude), lng: Number(placeState.longitude) }
+        : { lat: CONFIG.defaultCenter.latitude, lng: CONFIG.defaultCenter.longitude };
+      const mapOptions = { center: initial, zoom: placeState.latitude != null ? 16 : 11, mapTypeControl: false, streetViewControl: false, fullscreenControl: false };
+      if (CONFIG.googleMapsMapId) mapOptions.mapId = CONFIG.googleMapsMapId;
+      const map = new google.maps.Map(mapNode, mapOptions);
+      const marker = new google.maps.Marker({
+        map,
+        position: placeState.latitude != null ? initial : null,
+        draggable: true,
+        title: placeState.placeName || "選擇地點"
+      });
+
+      const syncInputs = () => {
+        document.querySelector("#place-name").value = placeState.placeName || "";
+        document.querySelector("#place-address").value = placeState.address || "";
+        document.querySelector("#place-latitude").value = placeState.latitude ?? "";
+        document.querySelector("#place-longitude").value = placeState.longitude ?? "";
+      };
+      const setPosition = (latitude, longitude, zoom = null) => {
+        placeState.latitude = Number(latitude);
+        placeState.longitude = Number(longitude);
+        const position = { lat: placeState.latitude, lng: placeState.longitude };
+        marker.setMap(map);
+        marker.setPosition(position);
+        map.panTo(position);
+        if (zoom) map.setZoom(zoom);
+        syncInputs();
+      };
+
+      marker.addListener("dragend", () => {
+        const position = marker.getPosition();
+        if (!position) return;
+        if (!placeState.placeName) placeState.placeName = "自訂地點";
+        setPosition(position.lat(), position.lng());
+      });
+      map.addListener("click", (event) => {
+        if (!event.latLng) return;
+        if (!placeState.placeName) placeState.placeName = "自訂地點";
+        setPosition(event.latLng.lat(), event.latLng.lng());
+      });
+
+      const autocomplete = new google.maps.places.Autocomplete(searchInput, {
+        fields: ["place_id", "name", "formatted_address", "geometry"],
+        componentRestrictions: { country: "tw" }
+      });
+      autocomplete.bindTo("bounds", map);
+      autocomplete.addListener("place_changed", () => {
+        const place = autocomplete.getPlace();
+        if (!place.geometry?.location) {
+          showToast("找不到此地點的座標，請改用地圖點選。", "error");
+          return;
+        }
+        placeState.placeName = place.name || "未命名地點";
+        placeState.address = place.formatted_address || "";
+        placeState.placeId = place.place_id || "";
+        setPosition(place.geometry.location.lat(), place.geometry.location.lng(), 17);
+        if (place.geometry.viewport) map.fitBounds(place.geometry.viewport);
+      });
+      return { map, marker, setPosition };
+    }
+
+    async function renderBookmarkForm(id = "") {
+      cleanups();
+      await loadCoreData();
+      const existing = id ? state.bookmarks.find((item) => item.id === id) : null;
+      if (id && !existing) {
+        shell({ title: "編輯收藏", active: "add", content: `<div class="alert alert-error">找不到這筆收藏。</div>` });
+        return;
+      }
+      const placeState = existing?.location ? { ...existing.location } : { placeName: "", address: "", latitude: null, longitude: null, placeId: "" };
+      let picker = null;
+
+      shell({
+        title: existing ? "編輯收藏" : "新增收藏",
+        subtitle: existing ? "更新內容與地點" : "快速加入你的收藏庫",
+        active: "add",
+        content: `<form id="bookmark-form" class="card form-card"><div class="form-banner"><h2>${existing ? "編輯這筆收藏" : "新增一筆收藏"}</h2><p>連結、標題與分類為必填；縮圖會自動判斷，無法取得時顯示平台圖示。</p></div><div class="form-body form-grid">
+          <section class="form-section"><div class="section-head"><div class="section-title"><span class="section-icon">${icon("link")}</span><h3>基本資料</h3></div></div><div class="form-grid">
+            <label class="field">短影音連結<input id="bookmark-url" type="url" required value="${escapeHtml(existing?.url || "")}" placeholder="貼上 Threads、Facebook、Instagram、小紅書等連結" /></label>
+            <div class="form-grid two"><label class="field">平台<select id="bookmark-platform">${Object.entries(PLATFORM_META).map(([value, meta]) => `<option value="${value}" ${(existing?.platform || "other") === value ? "selected" : ""}>${meta.label}</option>`).join("")}</select></label><label class="field">分類<select id="bookmark-category" required>${categoryOptions(existing?.categoryId || state.categories[0]?.id || "other")}</select></label></div>
+            <label class="field">標題<input id="bookmark-title" required maxlength="160" value="${escapeHtml(existing?.title || "")}" placeholder="請輸入方便日後辨識的標題" /></label>
+            <label class="field">標籤<small>以逗號分隔，例如：花蓮、瀑布、車宿</small><input id="bookmark-tags" value="${escapeHtml((existing?.tags || []).join(", "))}" /></label>
+            <label class="field">備註<textarea id="bookmark-note" maxlength="3000" placeholder="推薦餐點、交通方式、購買原因或重點摘要…">${escapeHtml(existing?.note || "")}</textarea></label>
+          </div></section>
+          ${locationSection(placeState)}
+          <div id="form-message"></div>
+          <div class="form-actions"><button type="button" class="btn btn-secondary" id="cancel-form">取消</button><button type="submit" class="btn btn-primary" id="save-bookmark">${icon("check")}${existing ? "儲存修改" : "新增收藏"}</button></div>
+        </div></form>`
+      });
+
+      const urlInput = document.querySelector("#bookmark-url");
+      const platformSelect = document.querySelector("#bookmark-platform");
+      urlInput.addEventListener("blur", () => { platformSelect.value = detectPlatform(urlInput.value); });
+      document.querySelector("#cancel-form").addEventListener("click", () => go("home"));
+
+      const syncPlace = () => {
+        placeState.placeName = document.querySelector("#place-name").value.trim();
+        placeState.address = document.querySelector("#place-address").value.trim();
+        const latitude = Number(document.querySelector("#place-latitude").value);
+        const longitude = Number(document.querySelector("#place-longitude").value);
+        placeState.latitude = Number.isFinite(latitude) ? latitude : null;
+        placeState.longitude = Number.isFinite(longitude) ? longitude : null;
+      };
+      ["#place-name", "#place-address", "#place-latitude", "#place-longitude"].forEach((selector) => document.querySelector(selector).addEventListener("change", syncPlace));
+
+      document.querySelector("#open-place-picker").addEventListener("click", async (event) => {
+        const panel = document.querySelector("#place-picker");
+        panel.classList.remove("hidden");
+        if (picker) { panel.scrollIntoView({ behavior: "smooth", block: "nearest" }); return; }
+        try {
+          event.currentTarget.disabled = true;
+          event.currentTarget.textContent = "載入地圖中…";
+          picker = await initPlacePicker(placeState);
+          panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        } catch (error) {
+          console.error(error);
+          document.querySelector("#place-map").innerHTML = `<div class="empty"><p>${escapeHtml(error?.message || "地圖載入失敗。")}</p></div>`;
+          showToast(error?.message || "地圖載入失敗。", "error");
+        } finally {
+          event.currentTarget.disabled = false;
+          event.currentTarget.innerHTML = `${icon("search")}搜尋地點與地圖選點`;
+        }
+      });
+
+      document.querySelector("#use-current-place").addEventListener("click", async (event) => {
+        try {
+          event.currentTarget.disabled = true;
+          const position = await getCurrentPosition();
+          placeState.placeName = placeState.placeName || "目前位置";
+          placeState.latitude = position.latitude;
+          placeState.longitude = position.longitude;
+          document.querySelector("#place-name").value = placeState.placeName;
+          document.querySelector("#place-latitude").value = position.latitude;
+          document.querySelector("#place-longitude").value = position.longitude;
+          picker?.setPosition(position.latitude, position.longitude, 17);
+          showToast("已填入目前位置。", "success");
+        } catch (error) { showToast(error?.message || "無法取得位置。", "error"); }
+        finally { event.currentTarget.disabled = false; }
+      });
+
+      document.querySelector("#clear-place").addEventListener("click", () => {
+        Object.assign(placeState, { placeName: "", address: "", latitude: null, longitude: null, placeId: "" });
+        ["#place-name", "#place-address", "#place-latitude", "#place-longitude"].forEach((selector) => { document.querySelector(selector).value = ""; });
+        picker?.marker?.setPosition(null);
+        showToast("地點已清除。", "success");
+      });
+
+      document.querySelector("#bookmark-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const button = document.querySelector("#save-bookmark");
+        try {
+          button.disabled = true;
+          syncPlace();
+          const url = urlInput.value.trim();
+          const normalizedUrl = normalizeUrl(url);
+          const duplicate = await findDuplicate(normalizedUrl);
+          if (duplicate && duplicate.id !== existing?.id) throw new Error(`這個連結已收藏：${duplicate.title || "未命名收藏"}`);
+          const hasCoordinates = Number.isFinite(Number(placeState.latitude)) && Number.isFinite(Number(placeState.longitude));
+          const hasAnyLocation = Boolean(placeState.placeName || placeState.address || placeState.latitude != null || placeState.longitude != null);
+          if (hasAnyLocation && !hasCoordinates) throw new Error("若要加入地點，請同時提供有效的緯度與經度；也可以直接在地圖上點選。" );
+          const platform = platformSelect.value;
+          const input = {
+            url,
+            normalizedUrl,
+            platform,
+            title: document.querySelector("#bookmark-title").value.trim(),
+            categoryId: document.querySelector("#bookmark-category").value,
+            tags: parseTags(document.querySelector("#bookmark-tags").value),
+            note: document.querySelector("#bookmark-note").value.trim(),
+            thumbnailUrl: inferThumbnailUrl(url, platform) || (existing?.url === url ? existing?.thumbnailUrl || "" : ""),
+            hasLocation: hasCoordinates,
+            location: hasCoordinates ? {
+              placeName: placeState.placeName || "自訂地點",
+              address: placeState.address || "",
+              latitude: Number(placeState.latitude),
+              longitude: Number(placeState.longitude),
+              geohash: geohashForLocation([Number(placeState.latitude), Number(placeState.longitude)]),
+              placeId: placeState.placeId || ""
+            } : null
+          };
+          if (existing) {
+            await updateBookmark(existing.id, input);
+            Object.assign(existing, input, { updatedAt: new Date() });
+            showToast("收藏已更新。", "success");
+          } else {
+            const newId = await createBookmark(input);
+            state.bookmarks.unshift({ id: newId, ...input, createdAt: new Date(), updatedAt: new Date() });
+            showToast("收藏已新增。", "success");
+          }
+          go("home");
+        } catch (error) {
+          document.querySelector("#form-message").innerHTML = `<div class="alert alert-error">${escapeHtml(error?.message || "儲存失敗。")}</div>`;
+          button.disabled = false;
+        }
+      });
+    }
+
+    async function renderMap() {
+      cleanups();
+      await loadCoreData();
+      shell({
+        title: "收藏地圖",
+        subtitle: "查看目前位置附近的收藏",
+        active: "map",
+        content: `<div class="map-toolbar"><select id="map-radius"><option value="10">10 km</option><option value="20" selected>20 km</option><option value="30">30 km</option><option value="50">50 km</option></select><button class="btn btn-secondary" id="search-area">${icon("search")}搜尋此區域</button><button class="btn btn-soft" id="current-location">${icon("compass")}目前位置</button></div>
+          <div class="chips" id="map-category-chips"><button class="chip active" data-map-category="">全部</button>${state.categories.map((category) => `<button class="chip" style="--chip-color:${escapeHtml(categoryColor(category))}" data-map-category="${category.id}">${escapeHtml(category.name)}</button>`).join("")}</div>
+          <div class="map-shell"><div id="map-status" class="map-status"></div><div id="main-map" class="map-canvas"></div></div><section id="map-sheet" class="map-sheet card"><span class="muted">點選地圖圖釘查看收藏。</span></section>`
+      });
+
+      const status = document.querySelector("#map-status");
+      const sheet = document.querySelector("#map-sheet");
+      const selected = { categoryId: "", center: { ...CONFIG.defaultCenter }, records: [] };
+      let map;
+      let currentMarker;
+      let markers = [];
+
+      const showStatus = (message = "") => { status.textContent = message; status.classList.toggle("show", Boolean(message)); };
+      const renderMarkers = () => {
+        markers.forEach((marker) => marker.setMap(null));
+        markers = [];
+        const categories = categoryMap();
+        const records = selected.categoryId ? selected.records.filter((item) => item.categoryId === selected.categoryId) : selected.records;
+        records.forEach((bookmark) => {
+          const category = categories.get(bookmark.categoryId) || { color: "#9a96a1" };
+          const marker = new google.maps.Marker({
+            map,
+            position: { lat: Number(bookmark.location.latitude), lng: Number(bookmark.location.longitude) },
+            title: bookmark.title,
+            icon: { path: google.maps.SymbolPath.CIRCLE, scale: 9, fillColor: categoryColor(category), fillOpacity: 1, strokeColor: "#ffffff", strokeWeight: 3 }
+          });
+          marker.addListener("click", () => {
+            sheet.innerHTML = `<h3>${escapeHtml(bookmark.title)}</h3><p>${escapeHtml(bookmark.location.placeName || "自訂地點")}${bookmark.distanceKm != null ? `・${bookmark.distanceKm.toFixed(bookmark.distanceKm < 10 ? 1 : 0)} km` : ""}</p>${bookmark.location.address ? `<p>${escapeHtml(bookmark.location.address)}</p>` : ""}<div class="map-sheet-actions"><a class="btn btn-small btn-soft" href="${escapeHtml(bookmark.url)}" target="_blank" rel="noreferrer">${icon("play")}開啟影片</a><a class="btn btn-small btn-primary" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${bookmark.location.latitude},${bookmark.location.longitude}`)}" target="_blank" rel="noreferrer">${icon("navigation")}導航</a></div>`;
+          });
+          markers.push(marker);
+        });
+        if (!records.length) sheet.innerHTML = `<span class="muted">這個範圍內沒有符合分類的收藏。</span>`;
+        else if (!sheet.querySelector("h3")) sheet.innerHTML = `<span class="muted">找到 ${records.length} 個收藏地點，點選圖釘查看。</span>`;
+      };
+
+      const searchCenter = async (center) => {
+        try {
+          showStatus("正在搜尋附近收藏…");
+          selected.center = center;
+          selected.records = await queryNearby(center, Number(document.querySelector("#map-radius").value));
+          renderMarkers();
+          showStatus("");
+        } catch (error) { console.error(error); showStatus(error?.message || "搜尋失敗。"); }
+      };
+
+      try {
+        showStatus("正在載入 Google 地圖…");
+        await loadGoogleMaps();
+        let start = { ...CONFIG.defaultCenter };
+        try { start = await getCurrentPosition(); } catch {}
+        selected.center = start;
+        const mapOptions = { center: { lat: start.latitude, lng: start.longitude }, zoom: 12, mapTypeControl: false, streetViewControl: false, fullscreenControl: false };
+        if (CONFIG.googleMapsMapId) mapOptions.mapId = CONFIG.googleMapsMapId;
+        map = new google.maps.Map(document.querySelector("#main-map"), mapOptions);
+        currentMarker = new google.maps.Marker({
+          map,
+          position: { lat: start.latitude, lng: start.longitude },
+          title: "目前位置",
+          icon: { path: google.maps.SymbolPath.CIRCLE, scale: 9, fillColor: "#2f80ed", fillOpacity: 1, strokeColor: "#ffffff", strokeWeight: 4 }
+        });
+        await searchCenter(start);
+      } catch (error) {
+        console.error(error);
+        showStatus(error?.message || "地圖載入失敗。");
+      }
+
+      document.querySelector("#search-area").addEventListener("click", () => {
+        if (!map) return;
+        const center = map.getCenter();
+        searchCenter({ latitude: center.lat(), longitude: center.lng() });
+      });
+      document.querySelector("#current-location").addEventListener("click", async () => {
+        try {
+          const position = await getCurrentPosition();
+          const latLng = { lat: position.latitude, lng: position.longitude };
+          map.panTo(latLng);
+          map.setZoom(13);
+          currentMarker.setPosition(latLng);
+          await searchCenter(position);
+        } catch (error) { showToast(error?.message || "無法取得位置。", "error"); }
+      });
+      document.querySelector("#map-radius").addEventListener("change", () => searchCenter(selected.center));
+      document.querySelectorAll("[data-map-category]").forEach((button) => button.addEventListener("click", () => {
+        selected.categoryId = button.dataset.mapCategory;
+        document.querySelectorAll("[data-map-category]").forEach((item) => item.classList.toggle("active", item === button));
+        renderMarkers();
+      }));
+    }
+
+    function openModal(content, onReady) {
+      const backdrop = document.createElement("div");
+      backdrop.className = "modal-backdrop";
+      backdrop.innerHTML = `<section class="modal">${content}</section>`;
+      document.body.append(backdrop);
+      const close = () => backdrop.remove();
+      backdrop.addEventListener("click", (event) => { if (event.target === backdrop) close(); });
+      onReady?.(backdrop, close);
+    }
+
+    function openEditCategory(category) {
+      openModal(`<h3>編輯分類</h3><div class="form-grid"><label class="field">分類名稱<input id="edit-category-name" maxlength="20" value="${escapeHtml(category.name)}" /></label><label class="field">圖示<select id="edit-category-icon">${iconOptions(categoryIconName(category))}</select></label><label class="field">顏色<input id="edit-category-color" type="color" value="${escapeHtml(categoryColor(category))}" /></label></div><div class="form-actions"><button class="btn btn-secondary" id="cancel-category">取消</button><button class="btn btn-primary" id="save-category">儲存</button></div>`, (root, close) => {
+        root.querySelector("#cancel-category").addEventListener("click", close);
+        root.querySelector("#save-category").addEventListener("click", async (event) => {
+          const name = root.querySelector("#edit-category-name").value.trim();
+          if (!name) return showToast("分類名稱不可空白。", "error");
+          try {
+            event.currentTarget.disabled = true;
+            const patch = { name, icon: root.querySelector("#edit-category-icon").value, color: root.querySelector("#edit-category-color").value };
+            await updateCategory(category.id, patch);
+            Object.assign(category, patch);
+            close();
+            showToast("分類已更新。", "success");
+            renderSettings();
+          } catch (error) { showToast(error?.message || "更新失敗。", "error"); event.currentTarget.disabled = false; }
+        });
+      });
+    }
+
+    async function renderSettings() {
+      cleanups();
+      await loadCoreData();
+      const counts = new Map();
+      state.bookmarks.forEach((bookmark) => counts.set(bookmark.categoryId, (counts.get(bookmark.categoryId) || 0) + 1));
+      shell({
+        title: "分類管理",
+        subtitle: "共同管理收藏分類",
+        active: "settings",
+        content: `<section class="card panel"><div class="section-head"><div class="section-title"><span class="section-icon">${icon("settings")}</span><h2>分類管理</h2></div><span class="small muted">${state.categories.length} 個分類</span></div>
+          <form id="add-category-form" class="category-add"><label class="field">新增分類<input id="new-category-name" maxlength="20" placeholder="分類名稱" required /></label><input id="new-category-color" class="color-input" type="color" value="#ff8066" aria-label="分類顏色" /><button class="btn btn-primary" type="submit">${icon("plus")}新增</button></form>
+          <div class="category-list">${state.categories.map((category) => `<div class="category-row"><span class="category-icon" style="--category-color:${escapeHtml(categoryColor(category))}">${icon(categoryIconName(category))}</span><div class="category-name"><strong>${escapeHtml(category.name)}</strong><small>${counts.get(category.id) || 0} 筆收藏</small></div><button class="btn btn-small btn-icon btn-secondary" data-edit-category="${category.id}" aria-label="編輯">${icon("edit")}</button><button class="btn btn-small btn-icon btn-danger" data-delete-category="${category.id}" ${category.system ? "disabled" : ""} aria-label="刪除">${icon("trash")}</button></div>`).join("")}</div>
+        </section><div class="logout-wrap"><button id="logout" class="btn btn-secondary">${icon("logout")}登出</button></div>`
+      });
+
+      document.querySelector("#logout").addEventListener("click", () => signOut(auth));
+      document.querySelector("#add-category-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const name = document.querySelector("#new-category-name").value.trim();
+        if (!name) return;
+        try {
+          const id = await addCategory({ name, icon: "sparkles", color: document.querySelector("#new-category-color").value });
+          state.categories.push({ id, name, icon: "sparkles", color: document.querySelector("#new-category-color").value, sortOrder: state.categories.length, system: false });
+          showToast("分類已新增。", "success");
+          renderSettings();
+        } catch (error) { showToast(error?.message || "新增分類失敗。", "error"); }
+      });
+      document.querySelectorAll("[data-edit-category]").forEach((button) => button.addEventListener("click", () => {
+        const category = state.categories.find((item) => item.id === button.dataset.editCategory);
+        if (category) openEditCategory(category);
+      }));
+      document.querySelectorAll("[data-delete-category]").forEach((button) => button.addEventListener("click", async () => {
+        const category = state.categories.find((item) => item.id === button.dataset.deleteCategory);
+        if (!category || !confirmDialog(`確定刪除分類「${category.name}」？`)) return;
+        try {
+          button.disabled = true;
+          await deleteCategory(category.id);
+          state.categories = state.categories.filter((item) => item.id !== category.id);
+          showToast("分類已刪除。", "success");
+          renderSettings();
+        } catch (error) { showToast(error?.message || "刪除失敗。", "error"); button.disabled = false; }
+      }));
+    }
+
+    async function renderRoute() {
+      if (!state.user) return renderLogin();
+      const current = route();
+      try {
+        if (current.path === "home") return renderHome();
+        if (current.path === "add") return renderBookmarkForm();
+        if (current.path === "edit") return renderBookmarkForm(current.id);
+        if (current.path === "map") return renderMap();
+        if (current.path === "settings") return renderSettings();
+        go("home");
+      } catch (error) {
+        console.error(error);
+        shell({ title: "發生錯誤", active: "home", content: `<div class="alert alert-error">${escapeHtml(error?.message || "載入失敗。")}</div>` });
+      }
+    }
+
+    window.addEventListener("hashchange", renderRoute);
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        state.user = null;
+        state.loaded = false;
+        state.categories = [];
+        state.bookmarks = [];
+        renderLogin();
+        return;
+      }
+      if (!isAllowedEmail(user.email)) {
+        await signOut(auth);
+        renderLogin("此帳號未被授權使用本 App。");
+        return;
+      }
+      state.user = user;
+      appRoot.innerHTML = `<div class="boot"><div class="boot-inner"><div class="brand-mark">▶</div><strong>正在同步收藏…</strong><div class="spinner"></div></div></div>`;
+      try {
+        await loadCoreData();
+        if (!location.hash) location.hash = "#/home";
+        else renderRoute();
+      } catch (error) {
+        console.error(error);
+        renderLogin(error?.message || "無法讀取資料。");
+      }
+    });
+  </script>
+</body>
 </html>

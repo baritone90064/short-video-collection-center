@@ -6,7 +6,6 @@ import {
   onAuthStateChanged,
   setPersistence,
   signInWithPopup,
-  signInWithRedirect,
   signOut
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
@@ -37,15 +36,27 @@ export async function loginWithGoogle() {
   try {
     return await signInWithPopup(auth, googleProvider);
   } catch (error) {
-    const redirectCodes = new Set([
-      "auth/popup-blocked",
-      "auth/cancelled-popup-request",
-      "auth/operation-not-supported-in-this-environment"
-    ]);
-    if (redirectCodes.has(error?.code)) {
-      await signInWithRedirect(auth, googleProvider);
-      return null;
+    console.error("Google login error:", error);
+
+    if (error?.code === "auth/popup-blocked") {
+      throw new Error(
+        "Google 登入視窗被瀏覽器阻擋，請使用 Safari 直接開啟網站後再登入。"
+      );
     }
+
+    if (
+      error?.code === "auth/popup-closed-by-user" ||
+      error?.code === "auth/cancelled-popup-request"
+    ) {
+      throw new Error("Google 登入視窗已關閉，請再試一次。");
+    }
+
+    if (error?.code === "auth/operation-not-supported-in-this-environment") {
+      throw new Error(
+        "目前的瀏覽器環境不支援 Google 登入，請複製網站網址並改用 Safari 開啟。"
+      );
+    }
+
     throw error;
   }
 }

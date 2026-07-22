@@ -1,11 +1,11 @@
 export const CONFIG = {
   firebase: {
-    apiKey: "AIzaSyBRJy9UUaSyXQFlAgb9_alRNW0HplS5QUg",
+    apiKey: "AIzaSyDFbx6even_CvSXgR3JUyyDW7cbP45b244",
     authDomain: "short-video-collection-c-1940a.firebaseapp.com",
     projectId: "short-video-collection-c-1940a",
     storageBucket: "short-video-collection-c-1940a.firebasestorage.app",
     messagingSenderId: "774442944506",
-    appId: "1:774442944506:web:54afea7cb09ca94ce4c643"
+    appId: "1:774442944506:web:a88d94665ccac05ee4c643"
   },
   googleMapsApiKey: "AIzaSyA4-xRZrDzb63hj6nmhRjQjkerd2Dmlho0",
   googleMapsMapId: "d4056d4f23c4e1a4fb2b395b",

@@ -11,9 +11,10 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="短影音收藏中心" />
-  <link rel="icon" type="image/svg+xml" href="./icon.svg" />
-  <link rel="shortcut icon" href="./icon.svg" />
-  <link rel="apple-touch-icon" href="./icon.svg" />
+  <link rel="icon" type="image/svg+xml" href="./icon.svg?v=20260723-2" />
+  <link rel="shortcut icon" href="./icon.svg?v=20260723-2" />
+  <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png?v=20260723-2" />
+  <link rel="apple-touch-icon-precomposed" sizes="180x180" href="./apple-touch-icon.png?v=20260723-2" />
   <title>短影音收藏中心</title>
   <style>
     :root {
@@ -131,7 +132,12 @@
     .top-title .brand-mark { width: 42px; height: 42px; border-radius: 14px; font-size: 16px; flex: 0 0 auto; }
     .top-copy { min-width: 0; }
     .top-copy strong { display: block; color: var(--text-strong); font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .top-copy small { display: block; margin-top: 1px; font-size: 11px; color: var(--muted); }
+    .top-subrow { display: flex; align-items: center; gap: 8px; min-width: 0; margin-top: 1px; }
+    .top-subrow small { display: block; min-width: 0; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .topbar-wishlist { width: 30px; min-width: 30px; height: 30px; min-height: 30px; padding: 0; border-radius: 10px; flex: 0 0 auto; }
+    .topbar-wishlist svg { width: 17px; height: 17px; fill: none; stroke: currentColor; }
+    .topbar-wishlist.active { color: #ffffff; background: #f4b942; border-color: #d99516; box-shadow: 0 5px 12px rgba(217,149,22,.22); }
+    .topbar-wishlist.active svg { fill: #ffffff; stroke: #ffffff; }
     .page { width: min(1040px, 100%); margin: 0 auto; padding: 14px 14px 28px; }
 
     .bottom-nav {
@@ -198,12 +204,10 @@
       display: grid;
       grid-template-columns: minmax(0, 1fr) 126px;
       gap: 9px;
-      align-items: start;
+      align-items: center;
       margin-bottom: 12px;
     }
-    .home-toolbar-actions { display: grid; gap: 7px; justify-items: stretch; }
-    .home-toolbar-actions .home-wishlist { justify-self: end; }
-    .home-toolbar-actions select { width: 100%; min-width: 0; }
+    .home-toolbar select { width: 100%; min-width: 0; }
     .search-wrap { position: relative; flex: 1 1 220px; }
     .search-wrap svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: var(--muted); }
     .search-wrap input { padding-left: 39px; }
@@ -317,7 +321,8 @@
     .platform-fallback.logo-failed .platform-name { display: block; }
     .bookmark-content { position: relative; min-width: 0; display: grid; gap: 5px; align-content: start; padding-right: 35px; }
     .bookmark-title { margin: 0; color: var(--text-strong); font-size: 15px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-    .bookmark-meta { display: flex; flex-wrap: wrap; gap: 5px 8px; color: var(--muted); font-size: 11px; }
+    .bookmark-meta { display: flex; flex-wrap: nowrap; gap: 5px 8px; overflow-x: auto; white-space: nowrap; color: var(--muted); font-size: 11px; scrollbar-width: none; }
+    .bookmark-meta::-webkit-scrollbar { display: none; }
     .meta-item { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
     .meta-item svg { width: 13px; height: 13px; flex: 0 0 auto; }
     .category-pill { display: inline-flex; align-items: center; gap: 5px; color: var(--category-color); font-weight: 800; }
@@ -366,7 +371,7 @@
       box-shadow: 0 7px 16px rgba(217,149,22,.24);
     }
     .home-wishlist.active svg, .map-wishlist.active svg { fill: #ffffff; stroke: #ffffff; }
-    .tag-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-size: 11px; }
+    .meta-tags { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); flex: 0 0 auto; }
     .bookmark-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
     .bookmark-actions .btn { min-height: 38px; padding: 0; font-size: 11px; }
     .bookmark-actions .btn-icon { width: 38px; min-width: 38px; height: 38px; padding: 0; }
@@ -730,7 +735,7 @@
 </head>
 <body>
   <div id="app">
-    <div class="boot"><div class="boot-inner"><div class="brand-mark"><img src="./icon.svg" alt="" /></div><strong>短影音收藏中心</strong><div class="spinner"></div></div></div>
+    <div class="boot"><div class="boot-inner"><div class="brand-mark"><img src="./icon.svg?v=20260723-2" alt="" /></div><strong>短影音收藏中心</strong><div class="spinner"></div></div></div>
   </div>
   <div id="toast-root" aria-live="polite"></div>
 
@@ -1273,9 +1278,9 @@
       navNode.querySelectorAll("[data-nav]").forEach((button) => button.addEventListener("click", () => go(button.dataset.nav)));
     }
 
-    function shell({ title, subtitle = "", active, content }) {
+    function shell({ title, subtitle = "", subtitleAction = "", active, content }) {
       appRoot.innerHTML = `<div class="app-shell">
-        <header class="topbar"><div class="top-title"><div class="brand-mark"><img src="./icon.svg" alt="" /></div><div class="top-copy"><strong>${escapeHtml(title)}</strong>${subtitle ? `<small>${escapeHtml(subtitle)}</small>` : ""}</div></div></header>
+        <header class="topbar"><div class="top-title"><div class="brand-mark"><img src="./icon.svg?v=20260723-2" alt="" /></div><div class="top-copy"><strong>${escapeHtml(title)}</strong>${subtitle ? `<div class="top-subrow"><small>${escapeHtml(subtitle)}</small>${subtitleAction}</div>` : ""}</div></div></header>
         <main class="page">${content}</main>
       </div>`;
       mountBottomNav(active);
@@ -1284,7 +1289,7 @@
     function renderLogin(error = "") {
       cleanups();
       removeBottomNav();
-      appRoot.innerHTML = `<div class="login-page"><section class="login-card"><div class="brand-mark"><img src="./icon.svg" alt="" /></div><h1>短影音收藏中心</h1><p>共同收藏短影音、分類整理，並在地圖查看附近景點與餐廳。</p>${error ? `<div class="alert alert-error">${escapeHtml(error)}</div>` : ""}<button id="login" class="btn google-btn">G　使用 Google 帳號登入</button></section></div>`;
+      appRoot.innerHTML = `<div class="login-page"><section class="login-card"><div class="brand-mark"><img src="./icon.svg?v=20260723-2" alt="" /></div><h1>短影音收藏中心</h1><p>共同收藏短影音、分類整理，並在地圖查看附近景點與餐廳。</p>${error ? `<div class="alert alert-error">${escapeHtml(error)}</div>` : ""}<button id="login" class="btn google-btn">G　使用 Google 帳號登入</button></section></div>`;
       document.querySelector("#login").addEventListener("click", async (event) => {
         try {
           event.currentTarget.disabled = true;
@@ -1354,8 +1359,8 @@
             ${bookmark.location?.placeName ? `<span class="meta-item">${icon("location")}${escapeHtml(bookmark.location.placeName)}</span>` : ""}
             ${Number.isFinite(Number(bookmark.distanceKm)) ? `<span class="meta-item">${icon("compass")}${Number(bookmark.distanceKm).toFixed(Number(bookmark.distanceKm) < 10 ? 1 : 0)} km</span>` : ""}
             ${bookmark.createdAt ? `<span class="meta-item">${formatDate(bookmark.createdAt)}</span>` : ""}
+            ${bookmark.tags?.length ? `<span class="meta-tags">${bookmark.tags.map((tag) => `#${escapeHtml(tag)}`).join("　")}</span>` : ""}
           </div>
-          ${bookmark.tags?.length ? `<div class="tag-line">${bookmark.tags.map((tag) => `#${escapeHtml(tag)}`).join("　")}</div>` : ""}
           <div class="bookmark-actions">
             ${bookmark.url ? `<a class="btn btn-small btn-icon btn-soft" href="${escapeHtml(bookmark.url)}" target="_blank" rel="noreferrer" aria-label="開啟連結" title="開啟連結">${icon("play")}</a>` : ""}
             ${hasLocation ? `<a class="btn btn-small btn-icon btn-primary" href="${navigationUrl}" target="_blank" rel="noreferrer" aria-label="導航" title="導航">${icon("navigation")}</a><button class="btn btn-small btn-icon btn-secondary" data-show-map="${bookmark.id}" aria-label="在地圖顯示" title="在地圖顯示">${icon("map")}</button>` : ""}
@@ -1391,8 +1396,9 @@
       shell({
         title: "我的收藏",
         subtitle: "手機快速瀏覽與整理",
+        subtitleAction: `<button class="btn btn-secondary topbar-wishlist" data-wishlist-filter aria-label="只看願望清單" aria-pressed="false" title="只看願望清單">${icon("star")}</button>`,
         active: "home",
-        content: `<div class="home-toolbar"><div class="search-wrap">${icon("search")}<input id="home-search" type="search" placeholder="搜尋標題、標籤、備註或地點" /></div><div class="home-toolbar-actions"><button class="btn btn-secondary home-wishlist" data-wishlist-filter aria-label="只看願望清單" aria-pressed="false" title="只看願望清單">${icon("star")}</button><select id="home-sort" aria-label="收藏排序"><option value="newest">最新加入</option><option value="distance">距離最近</option></select></div></div>
+        content: `<div class="home-toolbar"><div class="search-wrap">${icon("search")}<input id="home-search" type="search" placeholder="搜尋標題、標籤、備註或地點" /></div><select id="home-sort" aria-label="收藏排序"><option value="newest">最新加入</option><option value="distance">距離最近</option></select></div>
           <div class="chips">
             <button class="chip active" data-filter="">全部</button>
             ${state.categories.map((category) => `<button class="chip" style="--chip-color:${escapeHtml(categoryColor(category))}" data-filter="${category.id}">${escapeHtml(category.name)}</button>`).join("")}
@@ -1816,6 +1822,7 @@
       const urlInput = document.querySelector("#bookmark-url");
       const platformSelect = document.querySelector("#bookmark-platform");
       const titleInput = document.querySelector("#bookmark-title");
+      const noteInput = document.querySelector("#bookmark-note");
       const metadataStatus = document.querySelector("#metadata-status");
       const metadataPreview = document.querySelector("#metadata-preview");
       const placeNameInput = document.querySelector("#place-name");
@@ -1824,15 +1831,16 @@
       const placeSuggestions = document.querySelector("#place-suggestions");
       const placeSearchStatus = document.querySelector("#place-search-status");
 
-      let titleManuallyEdited = Boolean(existing?.title);
+      let noteManuallyEdited = Boolean(existing?.note);
+      let metadataTitleState = "";
       let thumbnailUrlState = String(existing?.thumbnailUrl || inferThumbnailUrl(existing?.url || "", existing?.platform || "other") || "").trim();
       let metadataRequestSerial = 0;
 
       const renderMetadataPreview = () => {
         const platform = platformSelect.value || detectPlatform(urlInput.value);
         const thumbnailUrl = thumbnailUrlState;
-        const title = titleInput.value.trim();
-        if (!thumbnailUrl && !title) {
+        const fetchedTitle = metadataTitleState.trim();
+        if (!thumbnailUrl && !fetchedTitle) {
           metadataPreview.classList.add("hidden");
           metadataPreview.innerHTML = "";
           return;
@@ -1841,7 +1849,7 @@
         metadataPreview.innerHTML = `<div class="metadata-preview-thumb">${thumbnailUrl
           ? `<img src="${escapeHtml(thumbnailUrl)}" alt="" data-metadata-preview-image />`
           : fallbackThumb(platform)}</div>
-          <div class="metadata-preview-copy"><strong>${escapeHtml(title || "尚未取得標題")}</strong><small>${escapeHtml(platformMeta(platform).label)}・自動帶入後仍可修改</small></div>`;
+          <div class="metadata-preview-copy"><strong>${escapeHtml(fetchedTitle || "尚未取得公開資訊")}</strong><small>${escapeHtml(platformMeta(platform).label)}・公開標題會放入備註，收藏標題請自行輸入</small></div>`;
         metadataPreview.querySelector("[data-metadata-preview-image]")?.addEventListener("error", (event) => {
           event.currentTarget.parentElement.innerHTML = fallbackThumb(platform);
         }, { once: true });
@@ -1855,6 +1863,7 @@
           return;
         }
         const requestId = ++metadataRequestSerial;
+        metadataTitleState = "";
         const platform = detectPlatform(url);
         if (!existing || String(existing.url || "").trim() !== url) thumbnailUrlState = inferThumbnailUrl(url, platform) || "";
         platformSelect.value = platform;
@@ -1863,9 +1872,10 @@
         try {
           const metadata = await fetchVideoMetadata(url);
           if (requestId !== metadataRequestSerial) return;
-          if (metadata.title && (force || !titleManuallyEdited || !titleInput.value.trim())) {
-            titleInput.value = metadata.title;
-            titleManuallyEdited = false;
+          metadataTitleState = String(metadata.title || "").trim();
+          if (metadataTitleState && (!noteManuallyEdited || !noteInput.value.trim())) {
+            noteInput.value = metadataTitleState;
+            noteManuallyEdited = false;
           }
           if (metadata.thumbnailUrl) thumbnailUrlState = metadata.thumbnailUrl;
           metadataStatus.textContent = metadata.warning
@@ -1876,16 +1886,15 @@
           if (requestId !== metadataRequestSerial) return;
           const fallback = inferThumbnailUrl(url, platform);
           if (fallback) thumbnailUrlState = fallback;
-          metadataStatus.textContent = `${error?.message || "無法自動讀取。"} 請手動輸入標題；縮圖會改用平台 Logo。`;
+          metadataStatus.textContent = `${error?.message || "無法自動讀取。"} 請自行輸入收藏標題；縮圖會改用平台 Logo。`;
           renderMetadataPreview();
         } finally {
           document.querySelector("#fetch-metadata").disabled = false;
         }
       };
 
-      titleInput.addEventListener("input", () => {
-        titleManuallyEdited = true;
-        renderMetadataPreview();
+      noteInput.addEventListener("input", () => {
+        noteManuallyEdited = true;
       });
       platformSelect.addEventListener("change", renderMetadataPreview);
       placeNameInput.addEventListener("input", () => {
@@ -2638,7 +2647,7 @@
       }
       state.user = user;
       removeBottomNav();
-      appRoot.innerHTML = `<div class="boot"><div class="boot-inner"><div class="brand-mark"><img src="./icon.svg" alt="" /></div><strong>正在同步收藏…</strong><div class="spinner"></div></div></div>`;
+      appRoot.innerHTML = `<div class="boot"><div class="boot-inner"><div class="brand-mark"><img src="./icon.svg?v=20260723-2" alt="" /></div><strong>正在同步收藏…</strong><div class="spinner"></div></div></div>`;
       try {
         await loadCoreData();
         if (!location.hash) location.hash = "#/home";

@@ -50,18 +50,3 @@ export function getCurrentPosition(options = {}) {
     );
   });
 }
-
-export function categoryEmoji(name = "") {
-  const text = String(name).toLowerCase();
-  if (text.includes("餐")) return "🍴";
-  if (text.includes("景")) return "📍";
-  if (text.includes("住")) return "🛏️";
-  if (text.includes("購")) return "🛍️";
-  if (text.includes("ai")) return "✨";
-  if (text.includes("知識")) return "💡";
-  if (text.includes("學")) return "📚";
-  if (text.includes("工作")) return "💼";
-  if (text.includes("健康")) return "💪";
-  if (text.includes("娛樂")) return "🎬";
-  return "●";
-}

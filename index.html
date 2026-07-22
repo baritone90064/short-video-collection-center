@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#ff8b6a" />
   <meta name="description" content="短影音收藏中心" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="短影音收藏中心" />
+  <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+  <link rel="shortcut icon" href="./icon.svg" />
+  <link rel="apple-touch-icon" href="./icon.svg" />
   <title>短影音收藏中心</title>
   <style>
     :root {
@@ -72,11 +78,12 @@
     .brand-mark {
       display: grid;
       place-items: center;
-      color: white;
-      background: linear-gradient(145deg, var(--coral), var(--orange));
+      overflow: hidden;
+      background: transparent;
       box-shadow: var(--shadow-float);
-      transform: rotate(-4deg);
+      transform: none;
     }
+    .brand-mark img { width: 100%; height: 100%; display: block; object-fit: cover; }
     .boot .brand-mark { width: 76px; height: 76px; border-radius: 25px; font-size: 30px; }
     .spinner {
       width: 28px;
@@ -255,15 +262,86 @@
       flex: 0 0 auto;
     }
     .bookmark-thumb img { width: 100%; height: 100%; object-fit: cover; }
-    .platform-fallback { width: 100%; height: 100%; display: grid; place-content: center; justify-items: center; gap: 5px; color: white; background: linear-gradient(145deg, var(--coral), var(--orange)); font-weight: 900; }
-    .platform-fallback span:first-child { font-size: 22px; }
-    .platform-fallback span:last-child { font-size: 10px; opacity: .9; }
-    .bookmark-content { min-width: 0; display: grid; gap: 5px; align-content: start; }
+    .platform-fallback {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+      color: white;
+      background: var(--platform-bg, linear-gradient(145deg, var(--coral), var(--orange)));
+      font-weight: 900;
+    }
+    .platform-logo {
+      position: relative;
+      z-index: 2;
+      width: 54%;
+      height: 54%;
+      object-fit: contain;
+      filter: drop-shadow(0 3px 8px rgba(0,0,0,.14));
+    }
+    .platform-logo-letter {
+      position: absolute;
+      z-index: 1;
+      font-size: 24px;
+      font-weight: 900;
+      opacity: .94;
+    }
+    .platform-name {
+      position: absolute;
+      z-index: 3;
+      left: 5px;
+      right: 5px;
+      bottom: 5px;
+      font-size: 9px;
+      text-align: center;
+      opacity: .92;
+    }
+    .bookmark-content { position: relative; min-width: 0; display: grid; gap: 5px; align-content: start; padding-right: 35px; }
     .bookmark-title { margin: 0; color: var(--text-strong); font-size: 15px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .bookmark-meta { display: flex; flex-wrap: wrap; gap: 5px 8px; color: var(--muted); font-size: 11px; }
     .meta-item { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
     .meta-item svg { width: 13px; height: 13px; flex: 0 0 auto; }
     .category-pill { display: inline-flex; align-items: center; gap: 5px; color: var(--category-color); font-weight: 800; }
+    .bookmark-category-badge {
+      position: absolute;
+      top: -1px;
+      right: 0;
+      width: 29px;
+      height: 29px;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      color: white;
+      background: var(--category-color, #9a96a1);
+      box-shadow: 0 4px 11px color-mix(in srgb, var(--category-color, #9a96a1) 30%, transparent);
+    }
+    .bookmark-category-badge svg { width: 17px; height: 17px; }
+    .wishlist-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: #b96d09;
+      font-weight: 800;
+    }
+    .wishlist-badge svg { width: 13px; height: 13px; fill: #f4b942; stroke: #d58b12; }
+    .wishlist-control {
+      display: flex;
+      align-items: flex-start;
+      gap: 11px;
+      padding: 12px;
+      border: 1px solid #f4dcc0;
+      border-radius: 15px;
+      background: #fff8e8;
+      color: var(--text-strong);
+      cursor: pointer;
+    }
+    .wishlist-control input { width: 21px; height: 21px; min-height: 0; margin: 1px 0 0; accent-color: var(--orange); flex: 0 0 auto; }
+    .wishlist-control strong { display: block; font-size: 14px; }
+    .wishlist-control small { display: block; margin-top: 2px; color: var(--muted); font-weight: 400; line-height: 1.45; }
+    .wishlist-filter.active, .map-wishlist.active { color: #8b5a09; background: #fff0bd; border-color: #f1c45e; }
+    .wishlist-filter svg, .map-wishlist svg { fill: #f4b942; stroke: #d58b12; }
     .tag-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-size: 11px; }
     .bookmark-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
     .bookmark-actions .btn { min-height: 38px; padding: 0; font-size: 11px; }
@@ -279,6 +357,65 @@
     .form-banner p { margin: 5px 0 0; font-size: 13px; opacity: .95; }
     .form-body { padding: 14px; }
     .place-tools { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .link-fetch-row { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; align-items: end; }
+    .metadata-status { min-height: 20px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .metadata-preview {
+      display: grid;
+      grid-template-columns: 58px minmax(0,1fr);
+      gap: 10px;
+      align-items: center;
+      padding: 9px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fffdfa;
+    }
+    .metadata-preview-thumb {
+      width: 58px;
+      height: 58px;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #f1ece6;
+    }
+    .metadata-preview-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .metadata-preview-copy { min-width: 0; }
+    .metadata-preview-copy strong { display: block; color: var(--text-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .metadata-preview-copy small { display: block; margin-top: 3px; color: var(--muted); line-height: 1.4; }
+    .advanced-details { border: 1px solid var(--line); border-radius: 14px; background: #fffdfa; }
+    .advanced-details summary { padding: 10px 12px; color: var(--muted); font-size: 12px; font-weight: 800; cursor: pointer; }
+    .advanced-details > div { padding: 0 12px 12px; }
+    .place-autocomplete-wrap { position: relative; }
+    .place-suggestions {
+      position: absolute;
+      z-index: 120;
+      left: 0;
+      right: 0;
+      top: calc(100% + 4px);
+      display: none;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: white;
+      box-shadow: 0 14px 32px rgba(49,40,35,.18);
+    }
+    .place-suggestions.show { display: block; }
+    .place-suggestion {
+      width: 100%;
+      padding: 10px 12px;
+      border: 0;
+      border-bottom: 1px solid #f0e9e3;
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      color: var(--text);
+      background: white;
+      text-align: left;
+    }
+    .place-suggestion:last-of-type { border-bottom: 0; }
+    .place-suggestion:active { background: var(--mint-soft); }
+    .place-suggestion svg { width: 18px; height: 18px; color: var(--mint-deep); flex: 0 0 auto; margin-top: 1px; }
+    .place-suggestion span { min-width: 0; line-height: 1.35; }
+    .place-suggestion small { display: block; margin-top: 2px; color: var(--muted); }
+    .google-attribution { padding: 6px 10px; color: var(--muted); background: #faf8f5; font-size: 10px; text-align: right; }
     .coordinate-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
     .coordinate-row .btn { min-width: 86px; }
     .map-provider-note { margin: 8px 2px 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
@@ -309,8 +446,8 @@
       left: 10px;
       right: 10px;
       display: grid;
-      grid-template-columns: minmax(0, 1.15fr) minmax(104px, .85fr) auto;
-      gap: 7px;
+      grid-template-columns: minmax(0, 1.15fr) minmax(98px, .8fr) 48px 54px;
+      gap: 6px;
       align-items: center;
       pointer-events: none;
     }
@@ -325,6 +462,9 @@
     .map-toolbar .btn { white-space: nowrap; }
     .map-toolbar select { min-width: 0; padding-right: 28px; }
     .map-toolbar .btn-soft { color: var(--mint-deep); background: rgba(221,246,236,.97); }
+    #current-location { width: 54px; min-width: 54px; padding: 0; }
+    #current-location svg { width: 24px; height: 24px; }
+    .map-wishlist { width: 48px; min-width: 48px; padding: 0; }
     .map-shell { position: absolute; inset: 0; overflow: hidden; border: 0; border-radius: 0; background: #eaf3ee; box-shadow: none; }
     .map-canvas { width: 100%; height: 100%; min-height: 0; z-index: 1; }
     .map-canvas .leaflet-control-container { font-size: 12px; }
@@ -510,7 +650,10 @@
     .color-input::-webkit-color-swatch { border: 0; border-radius: 50%; }
     .color-input::-moz-color-swatch { border: 0; border-radius: 50%; }
     .category-list { display: grid; gap: 9px; }
-    .category-row { display: grid; grid-template-columns: 42px minmax(0,1fr) auto auto; gap: 8px; align-items: center; padding: 10px; border: 1px solid var(--line); border-radius: 15px; background: var(--surface-soft); }
+    .category-row { display: grid; grid-template-columns: 34px 42px minmax(0,1fr) auto auto; gap: 8px; align-items: center; padding: 10px; border: 1px solid var(--line); border-radius: 15px; background: var(--surface-soft); }
+    .category-order { display: grid; gap: 3px; }
+    .category-order .btn { width: 30px; min-width: 30px; height: 25px; min-height: 25px; padding: 0; border-radius: 8px; }
+    .category-order .btn svg { width: 15px; height: 15px; }
     .category-icon { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 13px; color: white; background: var(--category-color); }
     .category-icon svg { width: 21px; height: 21px; }
     .category-name { min-width: 0; }
@@ -538,10 +681,10 @@
       .bookmark-thumb { width: 82px; height: 82px; border-radius: 14px; }
       .category-add { grid-template-columns: minmax(0,1fr) 54px auto; }
       .icon-picker { grid-template-columns: repeat(5, minmax(0,1fr)); }
-      .category-row { grid-template-columns: 38px minmax(0,1fr) auto auto; padding: 9px; }
+      .category-row { grid-template-columns: 32px 38px minmax(0,1fr) auto auto; padding: 9px; }
       .category-icon { width: 38px; height: 38px; }
       .place-map { min-height: 280px; }
-      .map-toolbar { grid-template-columns: minmax(0,1fr) 104px 46px; gap: 6px; }
+      .map-toolbar { grid-template-columns: minmax(0,1fr) 96px 46px 50px; gap: 5px; }
       .map-toolbar .btn { padding: 8px 10px; }
       .map-location-label { display: none; }
       .form-actions .btn { flex: 1 1 120px; }
@@ -550,7 +693,7 @@
 </head>
 <body>
   <div id="app">
-    <div class="boot"><div class="boot-inner"><div class="brand-mark">▶</div><strong>短影音收藏中心</strong><div class="spinner"></div></div></div>
+    <div class="boot"><div class="boot-inner"><div class="brand-mark"><img src="./icon.svg" alt="" /></div><strong>短影音收藏中心</strong><div class="spinner"></div></div></div>
   </div>
   <div id="toast-root" aria-live="polite"></div>
 
@@ -612,6 +755,9 @@
       },
       googleMapsApiKey: "AIzaSyA4-xRZrDzb63hj6nmhRjQjkerd2Dmlho0",
       googleMapsMapId: "d4056d4f23c4e1a4fb2b395b",
+      // 部署雲端函式後，僅需把觸發網址貼在這裡一次。
+      // 尚未填入時：YouTube 仍可自動讀取；Meta 平台會退回手動標題＋平台圖示。
+      metadataFunctionUrl: "https://fetch-video-metadata-774442944506.asia-east1.run.app/",
       sharedWorkspaceId: "shared",
       allowedEmails: [
         "baritone90064@gmail.com",
@@ -651,6 +797,9 @@
       health: '<path d="M12 21S4 16 4 9a4 4 0 0 1 7-2.6L12 7.5l1-1.1A4 4 0 0 1 20 9c0 7-8 12-8 12Z"/><path d="M7.5 12h2l1-2 2.2 5 1.3-3h2.5"/>',
       entertainment: '<rect x="3" y="5" width="18" height="15" rx="2"/><path d="m8 2 2 3M14 2l-2 3M8 10l7 3-7 3v-6Z"/>',
       sparkles: '<path d="m12 3 1.2 3.8L17 8l-3.8 1.2L12 13l-1.2-3.8L7 8l3.8-1.2L12 3ZM5 14l.8 2.2L8 17l-2.2.8L5 20l-.8-2.2L2 17l2.2-.8L5 14ZM19 13l.8 2.2L22 16l-2.2.8L19 19l-.8-2.2L16 16l2.2-.8L19 13Z"/>',
+      star: '<path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3Z"/>',
+      chevronUp: '<path d="m6 15 6-6 6 6"/>',
+      chevronDown: '<path d="m6 9 6 6 6-6"/>',
       other: '<circle cx="12" cy="12" r="9"/><path d="M8 12h.01M12 12h.01M16 12h.01"/>'
     };
 
@@ -675,13 +824,54 @@
     ];
 
     const PLATFORM_META = {
-      threads: { label: "Threads", short: "Th" },
-      instagram: { label: "Instagram", short: "IG" },
-      facebook: { label: "Facebook", short: "FB" },
-      xiaohongshu: { label: "小紅書", short: "小" },
-      tiktok: { label: "TikTok", short: "TT" },
-      youtube: { label: "YouTube", short: "YT" },
-      other: { label: "其他", short: "▶" }
+      threads: {
+        label: "Threads",
+        short: "Th",
+        logo: "https://cdn.simpleicons.org/threads/FFFFFF",
+        background: "#111111"
+      },
+      instagram: {
+        label: "Instagram",
+        short: "IG",
+        logo: "https://cdn.simpleicons.org/instagram/FFFFFF",
+        background: "linear-gradient(145deg,#7f3bd6 0%,#db2e92 45%,#ff6a3d 72%,#ffd36b 100%)"
+      },
+      facebook: {
+        label: "Facebook",
+        short: "FB",
+        logo: "https://cdn.simpleicons.org/facebook/FFFFFF",
+        background: "#1877F2"
+      },
+      xiaohongshu: {
+        label: "小紅書",
+        short: "小",
+        logo: "https://cdn.simpleicons.org/xiaohongshu/FFFFFF",
+        background: "#FF2442"
+      },
+      tiktok: {
+        label: "TikTok",
+        short: "TT",
+        logo: "https://cdn.simpleicons.org/tiktok/FFFFFF",
+        background: "#111111"
+      },
+      youtube: {
+        label: "YouTube",
+        short: "YT",
+        logo: "https://cdn.simpleicons.org/youtube/FFFFFF",
+        background: "#FF0000"
+      },
+      googlemaps: {
+        label: "Google Maps",
+        short: "G",
+        logo: "https://cdn.simpleicons.org/googlemaps/FFFFFF",
+        background: "#4285F4"
+      },
+      other: {
+        label: "其他",
+        short: "▶",
+        logo: "",
+        background: "linear-gradient(145deg,var(--coral),var(--orange))"
+      }
     };
 
     const appRoot = document.querySelector("#app");
@@ -813,6 +1003,27 @@
       await updateDoc(doc(db, "workspaces", CONFIG.sharedWorkspaceId, "categories", id), { ...data, updatedAt: serverTimestamp() });
     }
 
+    async function saveCategoryOrder() {
+      const batch = writeBatch(db);
+      state.categories.forEach((category, index) => {
+        category.sortOrder = index;
+        batch.update(doc(db, "workspaces", CONFIG.sharedWorkspaceId, "categories", category.id), {
+          sortOrder: index,
+          updatedAt: serverTimestamp()
+        });
+      });
+      await batch.commit();
+    }
+
+    async function moveCategory(id, direction) {
+      const index = state.categories.findIndex((item) => item.id === id);
+      const nextIndex = direction === "up" ? index - 1 : index + 1;
+      if (index < 0 || nextIndex < 0 || nextIndex >= state.categories.length) return false;
+      [state.categories[index], state.categories[nextIndex]] = [state.categories[nextIndex], state.categories[index]];
+      await saveCategoryOrder();
+      return true;
+    }
+
     async function deleteCategory(id) {
       const used = await getDocs(query(bookmarksRef(), where("categoryId", "==", id), limit(1)));
       if (!used.empty) throw new Error("這個分類仍有收藏使用中。請先逐筆修改收藏分類，或直接修改分類名稱。");
@@ -853,13 +1064,16 @@
 
     function detectPlatform(value) {
       try {
-        const host = new URL(value).hostname.toLowerCase();
-        if (host.includes("threads.net")) return "threads";
+        const parsed = new URL(value);
+        const host = parsed.hostname.toLowerCase();
+        const path = parsed.pathname.toLowerCase();
+        if (host.includes("threads.net") || host.includes("threads.com")) return "threads";
         if (host.includes("instagram.com")) return "instagram";
         if (host.includes("facebook.com") || host.includes("fb.watch")) return "facebook";
         if (host.includes("xiaohongshu.com") || host.includes("xhslink.com")) return "xiaohongshu";
         if (host.includes("tiktok.com")) return "tiktok";
         if (host.includes("youtube.com") || host.includes("youtu.be")) return "youtube";
+        if (host === "maps.app.goo.gl" || host === "goo.gl" || (host.includes("google.") && path.includes("/maps"))) return "googlemaps";
       } catch {}
       return "other";
     }
@@ -876,6 +1090,62 @@
         }
         return videoId ? `https://i.ytimg.com/vi/${encodeURIComponent(videoId)}/hqdefault.jpg` : "";
       } catch { return ""; }
+    }
+
+    async function fetchYouTubeMetadata(url) {
+      const endpoint = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+      const response = await fetch(endpoint, { headers: { Accept: "application/json" } });
+      if (!response.ok) throw new Error("YouTube 無法讀取這個公開連結。");
+      const data = await response.json();
+      return {
+        platform: "youtube",
+        title: String(data.title || "").trim(),
+        thumbnailUrl: String(data.thumbnail_url || inferThumbnailUrl(url, "youtube") || "").trim(),
+        authorName: String(data.author_name || "").trim(),
+        source: "YouTube oEmbed"
+      };
+    }
+
+    async function fetchMetadataFromFunction(url) {
+      const endpoint = String(CONFIG.metadataFunctionUrl || "").trim();
+      if (!endpoint) throw new Error("尚未設定 Meta 公開內容讀取函式。");
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) throw new Error("請先登入。");
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ url })
+      });
+      let data = {};
+      try { data = await response.json(); } catch {}
+      if (!response.ok) throw new Error(data.error || `公開內容讀取失敗（${response.status}）。`);
+      return data;
+    }
+
+    async function fetchVideoMetadata(url) {
+      const platform = detectPlatform(url);
+      if (platform === "youtube") {
+        try { return await fetchYouTubeMetadata(url); }
+        catch (error) {
+          const fallback = inferThumbnailUrl(url, platform);
+          if (fallback) return { platform, title: "", thumbnailUrl: fallback, source: "YouTube 縮圖規則", warning: error.message };
+          throw error;
+        }
+      }
+      if (["instagram", "facebook", "threads"].includes(platform)) {
+        const result = await fetchMetadataFromFunction(url);
+        return { platform, ...result };
+      }
+      return {
+        platform,
+        title: "",
+        thumbnailUrl: "",
+        source: "平台手動輸入",
+        warning: "此平台目前不提供自動標題與縮圖，請手動輸入標題。"
+      };
     }
 
     function parseTags(value) {
@@ -945,7 +1215,7 @@
 
     function shell({ title, subtitle = "", active, content }) {
       appRoot.innerHTML = `<div class="app-shell">
-        <header class="topbar"><div class="top-title"><div class="brand-mark">▶</div><div class="top-copy"><strong>${escapeHtml(title)}</strong>${subtitle ? `<small>${escapeHtml(subtitle)}</small>` : ""}</div></div></header>
+        <header class="topbar"><div class="top-title"><div class="brand-mark"><img src="./icon.svg" alt="" /></div><div class="top-copy"><strong>${escapeHtml(title)}</strong>${subtitle ? `<small>${escapeHtml(subtitle)}</small>` : ""}</div></div></header>
         <main class="page">${content}</main>
       </div>`;
       mountBottomNav(active);
@@ -954,7 +1224,7 @@
     function renderLogin(error = "") {
       cleanups();
       removeBottomNav();
-      appRoot.innerHTML = `<div class="login-page"><section class="login-card"><div class="brand-mark">▶</div><h1>短影音收藏中心</h1><p>共同收藏短影音、分類整理，並在地圖查看附近景點與餐廳。</p>${error ? `<div class="alert alert-error">${escapeHtml(error)}</div>` : ""}<button id="login" class="btn google-btn">G　使用 Google 帳號登入</button></section></div>`;
+      appRoot.innerHTML = `<div class="login-page"><section class="login-card"><div class="brand-mark"><img src="./icon.svg" alt="" /></div><h1>短影音收藏中心</h1><p>共同收藏短影音、分類整理，並在地圖查看附近景點與餐廳。</p>${error ? `<div class="alert alert-error">${escapeHtml(error)}</div>` : ""}<button id="login" class="btn google-btn">G　使用 Google 帳號登入</button></section></div>`;
       document.querySelector("#login").addEventListener("click", async (event) => {
         try {
           event.currentTarget.disabled = true;
@@ -996,7 +1266,11 @@
 
     function fallbackThumb(platform) {
       const meta = platformMeta(platform);
-      return `<div class="platform-fallback"><span>${escapeHtml(meta.short)}</span><span>${escapeHtml(meta.label)}</span></div>`;
+      return `<div class="platform-fallback" style="--platform-bg:${escapeHtml(meta.background)}">
+        <span class="platform-logo-letter">${escapeHtml(meta.short)}</span>
+        ${meta.logo ? `<img class="platform-logo" src="${escapeHtml(meta.logo)}" alt="${escapeHtml(meta.label)}" data-platform-logo />` : ""}
+        <span class="platform-name">${escapeHtml(meta.label)}</span>
+      </div>`;
     }
 
     function bookmarkRow(bookmark) {
@@ -1010,16 +1284,19 @@
       return `<article class="bookmark-row card">
         <div class="bookmark-thumb">${image}</div>
         <div class="bookmark-content">
+          <span class="bookmark-category-badge" style="--category-color:${escapeHtml(categoryColor(category))}" title="${escapeHtml(category.name)}">${icon(categoryIconName(category))}</span>
           <h3 class="bookmark-title">${escapeHtml(bookmark.title || "未命名收藏")}</h3>
           <div class="bookmark-meta">
-            <span class="category-pill" style="--category-color:${escapeHtml(categoryColor(category))}">${icon(categoryIconName(category))}${escapeHtml(category.name)}</span>
+            <span class="category-pill" style="--category-color:${escapeHtml(categoryColor(category))}">${escapeHtml(category.name)}</span>
             <span class="meta-item">${escapeHtml(platformMeta(bookmark.platform).label)}</span>
+            ${bookmark.wishlist ? `<span class="wishlist-badge">${icon("star")}願望</span>` : ""}
             ${bookmark.location?.placeName ? `<span class="meta-item">${icon("location")}${escapeHtml(bookmark.location.placeName)}</span>` : ""}
+            ${Number.isFinite(Number(bookmark.distanceKm)) ? `<span class="meta-item">${icon("compass")}${Number(bookmark.distanceKm).toFixed(Number(bookmark.distanceKm) < 10 ? 1 : 0)} km</span>` : ""}
             ${bookmark.createdAt ? `<span class="meta-item">${formatDate(bookmark.createdAt)}</span>` : ""}
           </div>
           ${bookmark.tags?.length ? `<div class="tag-line">${bookmark.tags.map((tag) => `#${escapeHtml(tag)}`).join("　")}</div>` : ""}
           <div class="bookmark-actions">
-            <a class="btn btn-small btn-icon btn-soft" href="${escapeHtml(bookmark.url)}" target="_blank" rel="noreferrer" aria-label="開啟連結" title="開啟連結">${icon("play")}</a>
+            ${bookmark.url ? `<a class="btn btn-small btn-icon btn-soft" href="${escapeHtml(bookmark.url)}" target="_blank" rel="noreferrer" aria-label="開啟連結" title="開啟連結">${icon("play")}</a>` : ""}
             ${hasLocation ? `<a class="btn btn-small btn-icon btn-primary" href="${navigationUrl}" target="_blank" rel="noreferrer" aria-label="導航" title="導航">${icon("navigation")}</a><button class="btn btn-small btn-icon btn-secondary" data-show-map="${bookmark.id}" aria-label="在地圖顯示" title="在地圖顯示">${icon("map")}</button>` : ""}
             <button class="btn btn-small btn-icon btn-secondary" data-edit-bookmark="${bookmark.id}" aria-label="編輯" title="編輯">${icon("edit")}</button>
             <button class="btn btn-small btn-icon btn-danger" data-delete-bookmark="${bookmark.id}" aria-label="刪除" title="刪除">${icon("trash")}</button>
@@ -1030,6 +1307,7 @@
 
     function bindBookmarkRows(refresh) {
       document.querySelectorAll("img[data-thumb-platform]").forEach((image) => image.addEventListener("error", () => { image.parentElement.innerHTML = fallbackThumb(image.dataset.thumbPlatform); }, { once: true }));
+      document.querySelectorAll("img[data-platform-logo]").forEach((image) => image.addEventListener("error", () => { image.remove(); }, { once: true }));
       document.querySelectorAll("[data-edit-bookmark]").forEach((button) => button.addEventListener("click", () => go(`edit/${button.dataset.editBookmark}`)));
       document.querySelectorAll("[data-show-map]").forEach((button) => button.addEventListener("click", () => go(`map/${button.dataset.showMap}`)));
       document.querySelectorAll("[data-delete-bookmark]").forEach((button) => button.addEventListener("click", async () => {
@@ -1048,13 +1326,17 @@
     async function renderHome() {
       cleanups();
       await loadCoreData();
-      const local = { search: "", categoryId: "", sort: "newest" };
+      const local = { search: "", categoryId: "", wishlistOnly: false, sort: "newest", currentPosition: null };
       shell({
         title: "我的收藏",
         subtitle: "手機快速瀏覽與整理",
         active: "home",
-        content: `<div class="toolbar"><div class="search-wrap">${icon("search")}<input id="home-search" type="search" placeholder="搜尋標題、標籤、備註或地點" /></div><select id="home-sort" style="width:auto"><option value="newest">最新加入</option><option value="name">名稱排序</option></select></div>
-          <div class="chips"><button class="chip active" data-filter="">全部</button>${state.categories.map((category) => `<button class="chip" style="--chip-color:${escapeHtml(categoryColor(category))}" data-filter="${category.id}">${escapeHtml(category.name)}</button>`).join("")}</div>
+        content: `<div class="toolbar"><div class="search-wrap">${icon("search")}<input id="home-search" type="search" placeholder="搜尋標題、標籤、備註或地點" /></div><select id="home-sort" style="width:auto"><option value="newest">最新加入</option><option value="distance">距離最近</option></select></div>
+          <div class="chips">
+            <button class="chip active" data-filter="">全部</button>
+            <button class="chip wishlist-filter" data-wishlist-filter>${icon("star")}願望清單</button>
+            ${state.categories.map((category) => `<button class="chip" style="--chip-color:${escapeHtml(categoryColor(category))}" data-filter="${category.id}">${escapeHtml(category.name)}</button>`).join("")}
+          </div>
           <div id="bookmark-list" class="bookmark-list"></div>`
       });
 
@@ -1062,25 +1344,63 @@
       const refresh = () => {
         let records = [...state.bookmarks];
         if (local.categoryId) records = records.filter((item) => item.categoryId === local.categoryId);
+        if (local.wishlistOnly) records = records.filter((item) => item.wishlist === true);
         const keyword = local.search.toLowerCase();
         if (keyword) records = records.filter((item) => [item.title, item.note, item.location?.placeName, item.location?.address, ...(item.tags || [])].join(" ").toLowerCase().includes(keyword));
-        if (local.sort === "name") records.sort((a, b) => String(a.title || "").localeCompare(String(b.title || ""), "zh-Hant"));
-        else records.sort((a, b) => {
-          const ta = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-          const tb = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-          return tb - ta;
-        });
+        if (local.sort === "distance" && local.currentPosition) {
+          records = records.map((item) => {
+            const hasCoordinates = item.hasLocation === true
+              && item.location?.latitude != null
+              && item.location?.longitude != null;
+            const latitude = Number(item.location?.latitude);
+            const longitude = Number(item.location?.longitude);
+            const distanceKm = hasCoordinates && Number.isFinite(latitude) && Number.isFinite(longitude)
+              ? distanceBetween(
+                  [local.currentPosition.latitude, local.currentPosition.longitude],
+                  [latitude, longitude]
+                )
+              : Number.POSITIVE_INFINITY;
+            return { ...item, distanceKm };
+          }).sort((a, b) => Number(a.distanceKm) - Number(b.distanceKm));
+        } else {
+          records.sort((a, b) => {
+            const ta = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+            const tb = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+            return tb - ta;
+          });
+        }
         list.innerHTML = records.length ? records.map(bookmarkRow).join("") : `<div class="card empty">${icon("sparkles")}<p>目前沒有符合條件的收藏。</p></div>`;
         bindBookmarkRows(refresh);
       };
 
       document.querySelector("#home-search").addEventListener("input", (event) => { local.search = event.target.value.trim(); refresh(); });
-      document.querySelector("#home-sort").addEventListener("change", (event) => { local.sort = event.target.value; refresh(); });
+      document.querySelector("#home-sort").addEventListener("change", async (event) => {
+        const select = event.currentTarget;
+        local.sort = select.value;
+        if (local.sort === "distance" && !local.currentPosition) {
+          try {
+            select.disabled = true;
+            local.currentPosition = await getCurrentPosition();
+          } catch (error) {
+            local.sort = "newest";
+            select.value = "newest";
+            showToast(error?.message || "無法取得目前位置。", "error");
+          } finally {
+            select.disabled = false;
+          }
+        }
+        refresh();
+      });
       document.querySelectorAll("[data-filter]").forEach((button) => button.addEventListener("click", () => {
         local.categoryId = button.dataset.filter;
         document.querySelectorAll("[data-filter]").forEach((item) => item.classList.toggle("active", item === button));
         refresh();
       }));
+      document.querySelector("[data-wishlist-filter]").addEventListener("click", (event) => {
+        local.wishlistOnly = !local.wishlistOnly;
+        event.currentTarget.classList.toggle("active", local.wishlistOnly);
+        refresh();
+      });
       refresh();
     }
 
@@ -1252,9 +1572,13 @@
 
     function locationSection(place = {}) {
       return `<section class="form-section">
-        <div class="section-head"><div class="section-title"><span class="section-icon" style="background:var(--mint-soft);color:var(--mint-deep)">${icon("location")}</span><div><h3>地點資訊</h3><small class="muted">選填；有座標才會顯示在地圖</small></div></div></div>
+        <div class="section-head"><div class="section-title"><span class="section-icon" style="background:var(--mint-soft);color:var(--mint-deep)">${icon("location")}</span><div><h3>地點資訊</h3><small class="muted">輸入店家、景點或地址，可由 Google 搜尋帶入資料</small></div></div></div>
         <div class="form-grid">
-          <label class="field">地點名稱<input id="place-name" value="${escapeHtml(place.placeName || "")}" placeholder="自動帶入標題，仍可修改" /></label>
+          <div class="place-autocomplete-wrap">
+            <label class="field">地點名稱<input id="place-name" autocomplete="off" value="${escapeHtml(place.placeName || "")}" placeholder="輸入關鍵字搜尋地點；仍可手動修改" /></label>
+            <div id="place-suggestions" class="place-suggestions" role="listbox" aria-label="Google 地點搜尋結果"></div>
+          </div>
+          <div id="place-search-status" class="metadata-status"></div>
           <label class="field">地址<input id="place-address" value="${escapeHtml(place.address || "")}" placeholder="沒有地址可留空白" /></label>
           <div class="coordinate-row">
             <label class="field">座標或 Plus Code
@@ -1268,6 +1592,125 @@
       </section>`;
     }
 
+    async function initGooglePlaceSearch({ input, suggestionsNode, statusNode, onSelect }) {
+      let timer = null;
+      let requestSerial = 0;
+      let sessionToken = null;
+      let AutocompleteSuggestion = null;
+      let AutocompleteSessionToken = null;
+
+      const closeSuggestions = () => {
+        suggestionsNode.classList.remove("show");
+        suggestionsNode.innerHTML = "";
+      };
+
+      try {
+        await loadGoogleMaps();
+        ({ AutocompleteSuggestion, AutocompleteSessionToken } = await google.maps.importLibrary("places"));
+        sessionToken = new AutocompleteSessionToken();
+        statusNode.textContent = "輸入 2 個字以上即可搜尋 Google 地點。";
+      } catch (error) {
+        console.warn("Google Place search unavailable:", error);
+        statusNode.textContent = "Google 地點搜尋目前無法使用，仍可手動輸入地址與座標。";
+        return () => {};
+      }
+
+      const search = async () => {
+        const keyword = input.value.trim();
+        if (keyword.length < 2) {
+          closeSuggestions();
+          statusNode.textContent = "輸入 2 個字以上即可搜尋 Google 地點。";
+          return;
+        }
+
+        const serial = ++requestSerial;
+        statusNode.textContent = "正在搜尋地點…";
+        try {
+          const { suggestions = [] } = await AutocompleteSuggestion.fetchAutocompleteSuggestions({
+            input: keyword,
+            sessionToken,
+            language: "zh-TW",
+            region: "tw"
+          });
+          if (serial !== requestSerial) return;
+
+          const predictions = suggestions
+            .map((item) => item.placePrediction)
+            .filter(Boolean)
+            .slice(0, 6);
+
+          if (!predictions.length) {
+            closeSuggestions();
+            statusNode.textContent = "找不到符合的 Google 地點，仍可手動輸入。";
+            return;
+          }
+
+          suggestionsNode.innerHTML = `${predictions.map((prediction, index) => {
+            const text = prediction.text?.toString?.() || "未命名地點";
+            const secondary = prediction.secondaryText?.toString?.() || "";
+            return `<button type="button" class="place-suggestion" data-place-index="${index}" role="option">
+              ${icon("location")}
+              <span><strong>${escapeHtml(text)}</strong>${secondary ? `<small>${escapeHtml(secondary)}</small>` : ""}</span>
+            </button>`;
+          }).join("")}<div class="google-attribution">由 Google 提供</div>`;
+          suggestionsNode.classList.add("show");
+          statusNode.textContent = "請從清單選擇正確地點。";
+
+          suggestionsNode.querySelectorAll("[data-place-index]").forEach((button) => {
+            button.addEventListener("click", async () => {
+              const prediction = predictions[Number(button.dataset.placeIndex)];
+              if (!prediction) return;
+              statusNode.textContent = "正在帶入地點資料…";
+              try {
+                const place = prediction.toPlace();
+                await place.fetchFields({
+                  fields: ["displayName", "formattedAddress", "location", "plusCode"]
+                });
+                const location = place.location;
+                const plusCode = place.plusCode?.globalCode || place.plusCode?.compoundCode || "";
+                await onSelect({
+                  placeName: place.displayName || prediction.text?.toString?.() || keyword,
+                  address: place.formattedAddress || "",
+                  latitude: location ? Number(location.lat()) : null,
+                  longitude: location ? Number(location.lng()) : null,
+                  plusCode,
+                  placeId: place.id || ""
+                });
+                sessionToken = new AutocompleteSessionToken();
+                closeSuggestions();
+                statusNode.textContent = "已帶入 Google 地點資料，仍可手動修改。";
+              } catch (error) {
+                console.error(error);
+                statusNode.textContent = "無法取得這個地點的詳細資料，請改用手動輸入。";
+              }
+            });
+          });
+        } catch (error) {
+          console.error(error);
+          closeSuggestions();
+          statusNode.textContent = "Google 地點搜尋失敗，請稍後重試或手動輸入。";
+        }
+      };
+
+      const onInput = () => {
+        clearTimeout(timer);
+        timer = setTimeout(search, 420);
+      };
+      const onDocumentPointer = (event) => {
+        if (!event.target.closest(".place-autocomplete-wrap")) closeSuggestions();
+      };
+
+      input.addEventListener("input", onInput);
+      document.addEventListener("pointerdown", onDocumentPointer);
+
+      return () => {
+        clearTimeout(timer);
+        requestSerial += 1;
+        input.removeEventListener("input", onInput);
+        document.removeEventListener("pointerdown", onDocumentPointer);
+      };
+    }
+
     async function renderBookmarkForm(id = "") {
       cleanups();
       await loadCoreData();
@@ -1278,8 +1721,8 @@
       }
 
       const placeState = existing?.location
-        ? { ...existing.location }
-        : { placeName: "", address: "", latitude: null, longitude: null, placeId: "" };
+        ? { plusCode: "", ...existing.location }
+        : { placeName: "", address: "", latitude: null, longitude: null, placeId: "", plusCode: "" };
 
       shell({
         title: existing ? "編輯收藏" : "新增收藏",
@@ -1287,11 +1730,24 @@
         active: "add",
         content: `<form id="bookmark-form" class="card form-card"><div class="form-body form-grid">
           <section class="form-section"><div class="section-head"><div class="section-title"><span class="section-icon">${icon("link")}</span><h3>基本資料</h3></div></div><div class="form-grid">
-            <label class="field">短影音連結<input id="bookmark-url" type="url" required value="${escapeHtml(existing?.url || "")}" placeholder="貼上連結" /></label>
+            <div class="link-fetch-row">
+              <label class="field">短影音連結（選填）<input id="bookmark-url" type="url" value="${escapeHtml(existing?.url || "")}" placeholder="貼上連結" /></label>
+              <button type="button" class="btn btn-soft" id="fetch-metadata">${icon("sparkles")}自動帶入</button>
+            </div>
+            <div id="metadata-status" class="metadata-status"></div>
+            <div id="metadata-preview" class="metadata-preview hidden"></div>
             <div class="form-grid two"><label class="field">平台<select id="bookmark-platform">${Object.entries(PLATFORM_META).map(([value, meta]) => `<option value="${value}" ${(existing?.platform || "other") === value ? "selected" : ""}>${meta.label}</option>`).join("")}</select></label><label class="field">分類<select id="bookmark-category" required>${categoryOptions(existing?.categoryId || state.categories[0]?.id || "other")}</select></label></div>
             <label class="field">標題<input id="bookmark-title" required maxlength="160" value="${escapeHtml(existing?.title || "")}" placeholder="請輸入標題" /></label>
+            <label class="wishlist-control">
+              <input id="bookmark-wishlist" type="checkbox" ${existing?.wishlist ? "checked" : ""} />
+              <span><strong>加入願望清單</strong><small>適用於想去、想吃、想買、想學或稍後想完成的收藏。</small></span>
+            </label>
             <label class="field">標籤<input id="bookmark-tags" value="${escapeHtml((existing?.tags || []).join(", "))}" placeholder="以逗號分隔，例如：花蓮、瀑布、車宿" /></label>
             <label class="field">備註<textarea id="bookmark-note" maxlength="3000" placeholder="推薦餐點、交通方式、購買原因或重點摘要…">${escapeHtml(existing?.note || "")}</textarea></label>
+            <details class="advanced-details">
+              <summary>縮圖設定（選填）</summary>
+              <div><label class="field">縮圖網址<input id="bookmark-thumbnail" type="url" value="${escapeHtml(existing?.thumbnailUrl || "")}" placeholder="自動取得失敗時可自行貼上圖片網址" /></label></div>
+            </details>
           </div></section>
           ${locationSection(placeState)}
           <div id="form-message"></div>
@@ -1302,14 +1758,81 @@
       const urlInput = document.querySelector("#bookmark-url");
       const platformSelect = document.querySelector("#bookmark-platform");
       const titleInput = document.querySelector("#bookmark-title");
+      const thumbnailInput = document.querySelector("#bookmark-thumbnail");
+      const metadataStatus = document.querySelector("#metadata-status");
+      const metadataPreview = document.querySelector("#metadata-preview");
       const placeNameInput = document.querySelector("#place-name");
       const addressInput = document.querySelector("#place-address");
       const coordinateInput = document.querySelector("#place-coordinate");
+      const placeSuggestions = document.querySelector("#place-suggestions");
+      const placeSearchStatus = document.querySelector("#place-search-status");
 
       let placeNameManuallyEdited = Boolean(
         existing?.location?.placeName &&
         String(existing.location.placeName).trim() !== String(existing.title || "").trim()
       );
+      let titleManuallyEdited = Boolean(existing?.title);
+      let metadataRequestSerial = 0;
+
+      const renderMetadataPreview = () => {
+        const platform = platformSelect.value || detectPlatform(urlInput.value);
+        const thumbnailUrl = thumbnailInput.value.trim();
+        const title = titleInput.value.trim();
+        if (!thumbnailUrl && !title) {
+          metadataPreview.classList.add("hidden");
+          metadataPreview.innerHTML = "";
+          return;
+        }
+        metadataPreview.classList.remove("hidden");
+        metadataPreview.innerHTML = `<div class="metadata-preview-thumb">${thumbnailUrl
+          ? `<img src="${escapeHtml(thumbnailUrl)}" alt="" data-metadata-preview-image />`
+          : fallbackThumb(platform)}</div>
+          <div class="metadata-preview-copy"><strong>${escapeHtml(title || "尚未取得標題")}</strong><small>${escapeHtml(platformMeta(platform).label)}・自動帶入後仍可修改</small></div>`;
+        metadataPreview.querySelector("[data-metadata-preview-image]")?.addEventListener("error", (event) => {
+          event.currentTarget.parentElement.innerHTML = fallbackThumb(platform);
+        }, { once: true });
+        metadataPreview.querySelector("[data-platform-logo]")?.addEventListener("error", (event) => event.currentTarget.remove(), { once: true });
+      };
+
+      const applyVideoMetadata = async ({ force = false } = {}) => {
+        const url = urlInput.value.trim();
+        if (!url) {
+          metadataStatus.textContent = "未填連結時，可直接選擇 Google Maps 平台並新增地點收藏。";
+          return;
+        }
+        const requestId = ++metadataRequestSerial;
+        const platform = detectPlatform(url);
+        platformSelect.value = platform;
+        metadataStatus.textContent = "正在讀取公開標題與縮圖…";
+        document.querySelector("#fetch-metadata").disabled = true;
+        try {
+          const metadata = await fetchVideoMetadata(url);
+          if (requestId !== metadataRequestSerial) return;
+          if (metadata.title && (force || !titleManuallyEdited || !titleInput.value.trim())) {
+            titleInput.value = metadata.title;
+            titleManuallyEdited = false;
+            if (!placeNameManuallyEdited || !placeNameInput.value.trim()) {
+              placeNameInput.value = metadata.title;
+              placeState.placeName = metadata.title;
+            }
+          }
+          if (metadata.thumbnailUrl && (force || !thumbnailInput.value.trim())) {
+            thumbnailInput.value = metadata.thumbnailUrl;
+          }
+          metadataStatus.textContent = metadata.warning
+            ? `${metadata.warning} 已保留手動修改。`
+            : `已從 ${metadata.source || platformMeta(platform).label} 帶入可取得的資料。`;
+          renderMetadataPreview();
+        } catch (error) {
+          if (requestId !== metadataRequestSerial) return;
+          const fallback = inferThumbnailUrl(url, platform);
+          if (fallback && !thumbnailInput.value.trim()) thumbnailInput.value = fallback;
+          metadataStatus.textContent = `${error?.message || "無法自動讀取。"} 請手動輸入標題；縮圖會改用平台 Logo。`;
+          renderMetadataPreview();
+        } finally {
+          document.querySelector("#fetch-metadata").disabled = false;
+        }
+      };
 
       if (!placeNameInput.value.trim() && titleInput.value.trim()) {
         placeNameInput.value = titleInput.value.trim();
@@ -1317,19 +1840,63 @@
       }
 
       titleInput.addEventListener("input", () => {
+        titleManuallyEdited = true;
         if (!placeNameManuallyEdited || !placeNameInput.value.trim()) {
           placeNameInput.value = titleInput.value.trim();
           placeState.placeName = titleInput.value.trim();
         }
+        renderMetadataPreview();
       });
+      thumbnailInput.addEventListener("input", renderMetadataPreview);
+      platformSelect.addEventListener("change", renderMetadataPreview);
       placeNameInput.addEventListener("input", () => {
         placeNameManuallyEdited = placeNameInput.value.trim() !== titleInput.value.trim();
         placeState.placeName = placeNameInput.value.trim();
       });
       addressInput.addEventListener("input", () => { placeState.address = addressInput.value.trim(); });
 
-      urlInput.addEventListener("blur", () => { platformSelect.value = detectPlatform(urlInput.value); });
+      urlInput.addEventListener("blur", () => {
+        if (!urlInput.value.trim()) return;
+        platformSelect.value = detectPlatform(urlInput.value);
+        applyVideoMetadata();
+      });
+      urlInput.addEventListener("paste", () => {
+        setTimeout(() => {
+          if (!urlInput.value.trim()) return;
+          platformSelect.value = detectPlatform(urlInput.value);
+          applyVideoMetadata();
+        }, 80);
+      });
+      document.querySelector("#fetch-metadata").addEventListener("click", () => applyVideoMetadata({ force: true }));
+      renderMetadataPreview();
       document.querySelector("#cancel-form").addEventListener("click", () => go("home"));
+
+      const cleanupPlaceSearch = await initGooglePlaceSearch({
+        input: placeNameInput,
+        suggestionsNode: placeSuggestions,
+        statusNode: placeSearchStatus,
+        onSelect: async (place) => {
+          placeNameInput.value = place.placeName || placeNameInput.value;
+          addressInput.value = place.address || "";
+          placeState.placeName = placeNameInput.value.trim();
+          placeState.address = addressInput.value.trim();
+          placeState.placeId = place.placeId || "";
+          placeState.plusCode = place.plusCode || "";
+          placeNameManuallyEdited = true;
+
+          if (Number.isFinite(place.latitude) && Number.isFinite(place.longitude)) {
+            placeState.latitude = place.latitude;
+            placeState.longitude = place.longitude;
+            coordinateInput.value = formatCoordinate(place.latitude, place.longitude);
+          } else if (place.plusCode) {
+            placeState.latitude = null;
+            placeState.longitude = null;
+            coordinateInput.value = place.plusCode;
+          }
+          showToast("已帶入 Google 地點資料。", "success");
+        }
+      });
+      state.cleanup.push(cleanupPlaceSearch);
 
       const applyCoordinateInput = async ({ silent = false } = {}) => {
         const raw = coordinateInput.value.trim();
@@ -1342,6 +1909,7 @@
           const position = await resolveCoordinateOrPlusCode(raw);
           placeState.latitude = Number(position.latitude);
           placeState.longitude = Number(position.longitude);
+          placeState.plusCode = raw.includes("+") ? raw.toUpperCase() : "";
           coordinateInput.value = formatCoordinate(placeState.latitude, placeState.longitude);
           if (!placeNameInput.value.trim()) {
             placeNameInput.value = titleInput.value.trim() || "自訂地點";
@@ -1389,7 +1957,7 @@
       });
 
       document.querySelector("#clear-place").addEventListener("click", () => {
-        Object.assign(placeState, { placeName: "", address: "", latitude: null, longitude: null, placeId: "" });
+        Object.assign(placeState, { placeName: "", address: "", latitude: null, longitude: null, placeId: "", plusCode: "" });
         placeNameInput.value = "";
         addressInput.value = "";
         coordinateInput.value = "";
@@ -1417,8 +1985,8 @@
           if (duplicate && duplicate.id !== existing?.id) throw new Error(`這個連結已收藏：${duplicate.title || "未命名收藏"}`);
 
           const hasCoordinates = Number.isFinite(Number(placeState.latitude)) && Number.isFinite(Number(placeState.longitude));
-          const hasAnyLocation = Boolean(placeState.placeName || placeState.address || coordinateInput.value.trim());
-          if (hasAnyLocation && !hasCoordinates) throw new Error("若要加入地點，請貼上有效的「緯度, 經度」或完整 Plus Code。");
+          const rawCoordinate = coordinateInput.value.trim();
+          const hasAnyLocation = Boolean(placeState.placeName || placeState.address || rawCoordinate || placeState.placeId || placeState.plusCode);
 
           const platform = platformSelect.value;
           const input = {
@@ -1427,17 +1995,19 @@
             platform,
             title: titleInput.value.trim(),
             categoryId: document.querySelector("#bookmark-category").value,
+            wishlist: document.querySelector("#bookmark-wishlist").checked,
             tags: parseTags(document.querySelector("#bookmark-tags").value),
             note: document.querySelector("#bookmark-note").value.trim(),
-            thumbnailUrl: inferThumbnailUrl(url, platform) || (existing?.url === url ? existing?.thumbnailUrl || "" : ""),
+            thumbnailUrl: thumbnailInput.value.trim() || inferThumbnailUrl(url, platform) || (existing?.url === url ? existing?.thumbnailUrl || "" : ""),
             hasLocation: hasCoordinates,
-            location: hasCoordinates ? {
+            location: hasAnyLocation ? {
               placeName: placeState.placeName || titleInput.value.trim() || "自訂地點",
               address: placeState.address || "",
-              latitude: Number(placeState.latitude),
-              longitude: Number(placeState.longitude),
-              geohash: geohashForLocation([Number(placeState.latitude), Number(placeState.longitude)]),
-              placeId: placeState.placeId || ""
+              latitude: hasCoordinates ? Number(placeState.latitude) : null,
+              longitude: hasCoordinates ? Number(placeState.longitude) : null,
+              geohash: hasCoordinates ? geohashForLocation([Number(placeState.latitude), Number(placeState.longitude)]) : "",
+              placeId: placeState.placeId || "",
+              plusCode: placeState.plusCode || (!hasCoordinates && rawCoordinate.includes("+") ? rawCoordinate.toUpperCase() : "")
             } : null
           };
 
@@ -1472,6 +2042,7 @@
           <div class="map-toolbar">
             <button class="btn btn-secondary" id="search-area">${icon("search")}<span>搜尋此區域</span></button>
             <select id="map-category" aria-label="分類"><option value="">全部分類</option>${state.categories.map((category) => `<option value="${escapeHtml(category.id)}">${escapeHtml(category.name)}</option>`).join("")}</select>
+            <button class="btn btn-secondary map-wishlist" id="map-wishlist" aria-label="只看願望清單" title="只看願望清單">${icon("star")}</button>
             <button class="btn btn-soft" id="current-location" aria-label="目前位置" title="目前位置">${icon("compass")}<span class="map-location-label">目前位置</span></button>
           </div>
           <div class="map-shell"><div id="map-status" class="map-status"></div><div id="main-map" class="map-canvas"></div></div>
@@ -1497,6 +2068,7 @@
       const categorySelect = document.querySelector("#map-category");
       const selected = {
         categoryId: "",
+        wishlistOnly: false,
         center: { ...CONFIG.defaultCenter },
         records: [],
         selectedBookmarkId: focusId || ""
@@ -1700,9 +2272,10 @@
         };
       };
 
-      const filteredRecords = () => selected.categoryId
-        ? selected.records.filter((item) => item.categoryId === selected.categoryId)
-        : selected.records;
+      const filteredRecords = () => selected.records.filter((item) =>
+        (!selected.categoryId || item.categoryId === selected.categoryId) &&
+        (!selected.wishlistOnly || item.wishlist === true)
+      );
 
       const renderResults = ({ scrollToSelected = false, autoOpen = false, single = false } = {}) => {
         const categories = categoryMap();
@@ -1717,7 +2290,7 @@
             <div class="map-result-copy"><strong>${escapeHtml(bookmark.title || "未命名收藏")}</strong><small>${escapeHtml(bookmark.location?.placeName || "自訂地點")}${bookmark.distanceKm != null ? `・${bookmark.distanceKm.toFixed(bookmark.distanceKm < 10 ? 1 : 0)} km` : ""}</small></div>
             <div class="map-result-actions"><a class="btn btn-icon btn-soft" href="${escapeHtml(bookmark.url)}" target="_blank" rel="noreferrer" aria-label="開啟連結" title="開啟連結">${icon("play")}</a><a class="btn btn-icon btn-primary" href="${navigationUrl}" target="_blank" rel="noreferrer" aria-label="導航" title="導航">${icon("navigation")}</a></div>
           </article>`;
-        }).join("") : `<div class="empty">${icon("map")}<p>目前地圖範圍內沒有符合分類的收藏。</p></div>`}</div>`;
+        }).join("") : `<div class="empty">${icon("map")}<p>目前地圖範圍內沒有符合篩選條件的收藏。</p></div>`}</div>`;
 
         resultsNode.querySelectorAll("[data-map-result]").forEach((row) => row.addEventListener("click", (event) => {
           if (event.target.closest("a,button")) return;
@@ -1750,7 +2323,7 @@
           });
         });
         renderResults({ scrollToSelected, autoOpen, single });
-        if (!records.length) showStatus("這個地圖範圍內沒有符合分類的收藏。");
+        if (!records.length) showStatus("這個地圖範圍內沒有符合篩選條件的收藏。");
         else showStatus("");
       };
 
@@ -1838,6 +2411,13 @@
         selected.selectedBookmarkId = "";
         renderMarkers({ autoOpen: true });
       });
+
+      document.querySelector("#map-wishlist").addEventListener("click", (event) => {
+        selected.wishlistOnly = !selected.wishlistOnly;
+        event.currentTarget.classList.toggle("active", selected.wishlistOnly);
+        selected.selectedBookmarkId = "";
+        renderMarkers({ autoOpen: true });
+      });
     }
 
     function openModal(content, onReady) {
@@ -1881,7 +2461,16 @@
         active: "settings",
         content: `<section class="card panel"><div class="section-head"><div class="section-title"><span class="section-icon">${icon("settings")}</span><h2>分類管理</h2></div><span class="small muted">${state.categories.length} 個分類</span></div>
           <form id="add-category-form" class="category-add"><label class="field">新增分類<input id="new-category-name" maxlength="20" placeholder="分類名稱" required /></label><label class="field">顏色<input id="new-category-color" class="color-input" type="color" value="#ff8066" aria-label="分類顏色" /></label><button class="btn btn-primary" type="submit">${icon("plus")}新增</button>${iconPicker("new-category-icon", "sparkles")}</form>
-          <div class="category-list">${state.categories.map((category) => `<div class="category-row"><span class="category-icon" style="--category-color:${escapeHtml(categoryColor(category))}">${icon(categoryIconName(category))}</span><div class="category-name"><strong>${escapeHtml(category.name)}</strong><small>${counts.get(category.id) || 0} 筆收藏</small></div><button class="btn btn-small btn-icon btn-secondary" data-edit-category="${category.id}" aria-label="編輯">${icon("edit")}</button><button class="btn btn-small btn-icon btn-danger" data-delete-category="${category.id}" ${category.system ? "disabled" : ""} aria-label="刪除">${icon("trash")}</button></div>`).join("")}</div>
+          <div class="category-list">${state.categories.map((category, index) => `<div class="category-row">
+            <span class="category-order">
+              <button type="button" class="btn btn-secondary" data-move-category="${category.id}" data-direction="up" ${index === 0 ? "disabled" : ""} aria-label="往上移">${icon("chevronUp")}</button>
+              <button type="button" class="btn btn-secondary" data-move-category="${category.id}" data-direction="down" ${index === state.categories.length - 1 ? "disabled" : ""} aria-label="往下移">${icon("chevronDown")}</button>
+            </span>
+            <span class="category-icon" style="--category-color:${escapeHtml(categoryColor(category))}">${icon(categoryIconName(category))}</span>
+            <div class="category-name"><strong>${escapeHtml(category.name)}</strong><small>${counts.get(category.id) || 0} 筆收藏</small></div>
+            <button class="btn btn-small btn-icon btn-secondary" data-edit-category="${category.id}" aria-label="編輯">${icon("edit")}</button>
+            <button class="btn btn-small btn-icon btn-danger" data-delete-category="${category.id}" ${category.system ? "disabled" : ""} aria-label="刪除">${icon("trash")}</button>
+          </div>`).join("")}</div>
         </section><div class="logout-wrap"><button id="logout" class="btn btn-secondary">${icon("logout")}登出</button></div>`
       });
 
@@ -1900,6 +2489,20 @@
           renderSettings();
         } catch (error) { showToast(error?.message || "新增分類失敗。", "error"); }
       });
+      document.querySelectorAll("[data-move-category]").forEach((button) => button.addEventListener("click", async () => {
+        try {
+          document.querySelectorAll("[data-move-category]").forEach((item) => { item.disabled = true; });
+          const moved = await moveCategory(button.dataset.moveCategory, button.dataset.direction);
+          if (moved) {
+            showToast("分類順序已更新。", "success");
+            renderSettings();
+          }
+        } catch (error) {
+          showToast(error?.message || "調整順序失敗。", "error");
+          renderSettings();
+        }
+      }));
+
       document.querySelectorAll("[data-edit-category]").forEach((button) => button.addEventListener("click", () => {
         const category = state.categories.find((item) => item.id === button.dataset.editCategory);
         if (category) openEditCategory(category);
@@ -1950,7 +2553,7 @@
       }
       state.user = user;
       removeBottomNav();
-      appRoot.innerHTML = `<div class="boot"><div class="boot-inner"><div class="brand-mark">▶</div><strong>正在同步收藏…</strong><div class="spinner"></div></div></div>`;
+      appRoot.innerHTML = `<div class="boot"><div class="boot-inner"><div class="brand-mark"><img src="./icon.svg" alt="" /></div><strong>正在同步收藏…</strong><div class="spinner"></div></div></div>`;
       try {
         await loadCoreData();
         if (!location.hash) location.hash = "#/home";

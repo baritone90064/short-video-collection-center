@@ -21,24 +21,24 @@ import { CONFIG } from "./config.js";
 import { distanceKm, geoBounds, toGeohash } from "./geo.js";
 
 const DEFAULT_CATEGORIES = [
-  ["scenic", "景點", "📍"],
-  ["restaurant", "餐廳", "🍴"],
-  ["lodging", "住宿", "🛏️"],
-  ["shopping", "購物", "🛍️"],
-  ["knowledge", "知識", "💡"],
-  ["learning", "學習", "📚"],
-  ["ai-tools", "AI工具", "✨"],
-  ["work", "工作", "💼"],
-  ["health", "健康", "💪"],
-  ["entertainment", "娛樂", "🎬"],
-  ["other", "其他", "●"]
+  ["scenic", "景點", "scenic", "#67c7a3"],
+  ["restaurant", "餐廳", "restaurant", "#f47b64"],
+  ["lodging", "住宿", "lodging", "#8b78e6"],
+  ["shopping", "購物", "shopping", "#f5a623"],
+  ["knowledge", "知識", "knowledge", "#41b7b2"],
+  ["learning", "學習", "learning", "#5aa7e8"],
+  ["ai-tools", "AI工具", "ai", "#ef6f9a"],
+  ["work", "工作", "work", "#6e8bd8"],
+  ["health", "健康", "health", "#64b98a"],
+  ["entertainment", "娛樂", "entertainment", "#e97b9b"],
+  ["other", "其他", "other", "#9a91a8"]
 ];
 
-function categoriesRef(_uid) {
+function categoriesRef() {
   return collection(db, "workspaces", CONFIG.sharedWorkspaceId, "categories");
 }
 
-function bookmarksRef(_uid) {
+function bookmarksRef() {
   return collection(db, "workspaces", CONFIG.sharedWorkspaceId, "bookmarks");
 }
 
@@ -46,14 +46,15 @@ function withId(snapshot) {
   return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
 }
 
-export async function seedDefaultCategories(uid) {
-  const existing = await getDocs(query(categoriesRef(uid), limit(1)));
+export async function seedDefaultCategories() {
+  const existing = await getDocs(query(categoriesRef(), limit(1)));
   if (!existing.empty) return;
   const batch = writeBatch(db);
-  DEFAULT_CATEGORIES.forEach(([id, name, icon], index) => {
-    batch.set(doc(categoriesRef(uid), id), {
+  DEFAULT_CATEGORIES.forEach(([id, name, icon, color], index) => {
+    batch.set(doc(categoriesRef(), id), {
       name,
       icon,
+      color,
       sortOrder: index,
       active: true,
       system: id === "other",
@@ -64,42 +65,43 @@ export async function seedDefaultCategories(uid) {
   await batch.commit();
 }
 
-export async function listCategories(uid) {
-  const snapshot = await getDocs(query(categoriesRef(uid), orderBy("sortOrder", "asc")));
+export async function listCategories() {
+  const snapshot = await getDocs(query(categoriesRef(), orderBy("sortOrder", "asc")));
   return withId(snapshot);
 }
 
-export async function addCategory(uid, { name, icon, sortOrder }) {
-  await addDoc(categoriesRef(uid), {
+export async function addCategory({ name, icon, color, sortOrder }) {
+  const result = await addDoc(categoriesRef(), {
     name: String(name || "").trim(),
-    icon: String(icon || "●").trim() || "●",
+    icon: String(icon || "other").trim() || "other",
+    color: /^#[0-9a-f]{6}$/i.test(String(color || "")) ? color : "#f47b64",
     sortOrder: Number(sortOrder) || 0,
     active: true,
     system: false,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   });
+  return result.id;
 }
 
-export async function updateCategory(uid, categoryId, patch) {
+export async function updateCategory(categoryId, patch) {
   await updateDoc(doc(db, "workspaces", CONFIG.sharedWorkspaceId, "categories", categoryId), {
     ...patch,
     updatedAt: serverTimestamp()
   });
 }
 
-export async function deleteCategoryAndMove(uid, sourceCategoryId, targetCategoryId) {
+export async function deleteCategoryAndMove(sourceCategoryId, targetCategoryId) {
   if (!sourceCategoryId || !targetCategoryId || sourceCategoryId === targetCategoryId) {
     throw new Error("請選擇不同的替代分類。");
   }
-  const affected = await getDocs(query(bookmarksRef(uid), where("categoryId", "==", sourceCategoryId)));
+  const affected = await getDocs(query(bookmarksRef(), where("categoryId", "==", sourceCategoryId)));
   const docs = affected.docs;
   for (let index = 0; index < docs.length; index += 450) {
     const batch = writeBatch(db);
     docs.slice(index, index + 450).forEach((item) => {
       batch.update(item.ref, {
         categoryId: targetCategoryId,
-        status: "pending",
         updatedAt: serverTimestamp()
       });
     });
@@ -109,28 +111,24 @@ export async function deleteCategoryAndMove(uid, sourceCategoryId, targetCategor
   return docs.length;
 }
 
-export async function listBookmarks(uid, maxResults = CONFIG.pageSize) {
-  const snapshot = await getDocs(
-    query(bookmarksRef(uid), orderBy("createdAt", "desc"), limit(maxResults))
-  );
+export async function listBookmarks(maxResults = CONFIG.pageSize) {
+  const snapshot = await getDocs(query(bookmarksRef(), orderBy("createdAt", "desc"), limit(maxResults)));
   return withId(snapshot);
 }
 
-export async function getBookmark(uid, bookmarkId) {
+export async function getBookmark(bookmarkId) {
   const snapshot = await getDoc(doc(db, "workspaces", CONFIG.sharedWorkspaceId, "bookmarks", bookmarkId));
   return snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null;
 }
 
-export async function findDuplicateUrl(uid, normalizedUrl) {
+export async function findDuplicateUrl(normalizedUrl) {
   if (!normalizedUrl) return null;
-  const snapshot = await getDocs(
-    query(bookmarksRef(uid), where("normalizedUrl", "==", normalizedUrl), limit(1))
-  );
+  const snapshot = await getDocs(query(bookmarksRef(), where("normalizedUrl", "==", normalizedUrl), limit(1)));
   return snapshot.empty ? null : { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
 }
 
-export async function createBookmark(uid, input) {
-  const result = await addDoc(bookmarksRef(uid), {
+export async function createBookmark(input) {
+  const result = await addDoc(bookmarksRef(), {
     ...input,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
@@ -138,27 +136,22 @@ export async function createBookmark(uid, input) {
   return result.id;
 }
 
-export async function updateBookmark(uid, bookmarkId, input) {
+export async function updateBookmark(bookmarkId, input) {
   await updateDoc(doc(db, "workspaces", CONFIG.sharedWorkspaceId, "bookmarks", bookmarkId), {
     ...input,
     updatedAt: serverTimestamp()
   });
 }
 
-export async function removeBookmark(uid, bookmarkId) {
+export async function removeBookmark(bookmarkId) {
   await deleteDoc(doc(db, "workspaces", CONFIG.sharedWorkspaceId, "bookmarks", bookmarkId));
 }
 
-export async function queryNearbyBookmarks(uid, center, radiusKm) {
+export async function queryNearbyBookmarks(center, radiusKm) {
   const bounds = geoBounds(center, radiusKm);
   const snapshots = await Promise.all(
     bounds.map(([start, end]) => getDocs(
-      query(
-        bookmarksRef(uid),
-        orderBy("location.geohash"),
-        startAt(start),
-        endAt(end)
-      )
+      query(bookmarksRef(), orderBy("location.geohash"), startAt(start), endAt(end))
     ))
   );
 
@@ -194,15 +187,18 @@ export async function upsertUserProfile(user) {
   }, { merge: true });
 }
 
-export async function importBookmarks(uid, records, categories) {
+export async function importBookmarks(records, categories) {
   const valid = Array.isArray(records) ? records : [];
   const categoryIds = new Set(categories.map((category) => category.id));
   let count = 0;
   for (let index = 0; index < valid.length; index += 400) {
     const batch = writeBatch(db);
     valid.slice(index, index + 400).forEach((record) => {
-      const ref = doc(bookmarksRef(uid));
+      const ref = doc(bookmarksRef());
       const categoryId = categoryIds.has(record.categoryId) ? record.categoryId : "other";
+      const hasLocation = Boolean(record.hasLocation && record.location);
+      const latitude = Number(record.location?.latitude);
+      const longitude = Number(record.location?.longitude);
       batch.set(ref, {
         title: String(record.title || "未命名收藏").slice(0, 160),
         url: String(record.url || ""),
@@ -212,14 +208,13 @@ export async function importBookmarks(uid, records, categories) {
         categoryId,
         tags: Array.isArray(record.tags) ? record.tags.map(String).slice(0, 20) : [],
         note: String(record.note || "").slice(0, 3000),
-        status: record.status === "pending" ? "pending" : "active",
-        hasLocation: Boolean(record.hasLocation && record.location),
-        location: record.hasLocation && record.location ? {
+        hasLocation: hasLocation && Number.isFinite(latitude) && Number.isFinite(longitude),
+        location: hasLocation && Number.isFinite(latitude) && Number.isFinite(longitude) ? {
           placeName: String(record.location.placeName || "自訂地點"),
           address: String(record.location.address || ""),
-          latitude: Number(record.location.latitude),
-          longitude: Number(record.location.longitude),
-          geohash: String(record.location.geohash || toGeohash(Number(record.location.latitude), Number(record.location.longitude))),
+          latitude,
+          longitude,
+          geohash: String(record.location.geohash || toGeohash(latitude, longitude)),
           placeId: String(record.location.placeId || "")
         } : null,
         createdAt: serverTimestamp(),

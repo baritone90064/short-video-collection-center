@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#ff8b6a" />
   <meta name="description" content="短影音收藏中心" />
   <title>短影音收藏中心</title>
@@ -39,7 +39,8 @@
     * { box-sizing: border-box; }
     html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); }
     body { min-width: 320px; -webkit-font-smoothing: antialiased; }
-    button, input, select, textarea { font: inherit; }
+    button, input, select, textarea { font: inherit; font-size: 16px; }
+    html, body { touch-action: manipulation; overscroll-behavior-y: none; }
     button { cursor: pointer; }
     img { max-width: 100%; }
     a { color: inherit; }
@@ -101,7 +102,7 @@
     .login-card p { line-height: 1.7; color: var(--muted); }
     .google-btn { width: 100%; margin-top: 12px; background: white; border-color: #d9d5d0; }
 
-    .app-shell { min-height: 100vh; padding-bottom: calc(88px + env(safe-area-inset-bottom)); }
+    .app-shell { min-height: 100vh; padding-bottom: calc(78px + env(safe-area-inset-bottom)); }
     .topbar {
       position: sticky;
       top: 0;
@@ -126,18 +127,19 @@
     .bottom-nav {
       position: fixed;
       z-index: 80;
-      left: 10px;
-      right: 10px;
-      bottom: calc(8px + env(safe-area-inset-bottom));
+      left: 0;
+      right: 0;
+      bottom: 0;
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 4px;
-      padding: 7px;
+      padding: 7px 10px calc(7px + env(safe-area-inset-bottom));
       border: 1px solid rgba(236,226,217,.95);
-      border-radius: 25px;
-      background: rgba(255,255,255,.97);
+      border-bottom: 0;
+      border-radius: 25px 25px 0 0;
+      background: rgba(255,255,255,.98);
       backdrop-filter: blur(18px);
-      box-shadow: 0 14px 34px rgba(91,59,43,.16);
+      box-shadow: 0 -8px 28px rgba(91,59,43,.14);
     }
     .nav-item {
       border: 0;
@@ -270,6 +272,9 @@
     .form-banner p { margin: 5px 0 0; font-size: 13px; opacity: .95; }
     .form-body { padding: 14px; }
     .place-tools { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .coordinate-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+    .coordinate-row .btn { min-width: 86px; }
+    .map-provider-note { margin: 8px 2px 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
     .place-picker { margin-top: 12px; border: 1px solid #cfe9de; border-radius: 18px; overflow: hidden; background: #edf7f2; }
     .place-search { padding: 10px; background: #f7fcf9; border-bottom: 1px solid #cfe9de; }
     .place-map { min-height: 310px; background: #edf4f0; }
@@ -278,7 +283,8 @@
     .map-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
     .map-toolbar select { width: auto; min-width: 105px; }
     .map-shell { position: relative; overflow: hidden; border: 1px solid var(--line); border-radius: 20px; background: #eaf3ee; box-shadow: var(--shadow); }
-    .map-canvas { min-height: min(62vh, 600px); }
+    .map-canvas { min-height: min(62vh, 600px); z-index: 1; }
+    .map-canvas .leaflet-control-container { font-size: 12px; }
     .map-status { position: absolute; z-index: 5; left: 12px; right: 12px; top: 12px; display: none; padding: 10px 12px; border-radius: 14px; background: rgba(255,255,255,.94); box-shadow: var(--shadow); font-size: 13px; }
     .map-status.show { display: block; }
     .map-sheet { margin-top: 10px; padding: 14px; min-height: 74px; }
@@ -784,8 +790,7 @@
         title: "我的收藏",
         subtitle: "手機快速瀏覽與整理",
         active: "home",
-        content: `<section class="hero"><h1>今天想看什麼？</h1><p>快速找到已收藏的景點、餐廳、知識與生活靈感。</p><div class="hero-stats"><span class="hero-stat">${state.bookmarks.length} 筆收藏</span><span class="hero-stat">${state.bookmarks.filter((item) => item.hasLocation).length} 個地點</span><span class="hero-stat">${state.categories.length} 個分類</span></div></section>
-          <div class="toolbar"><div class="search-wrap">${icon("search")}<input id="home-search" type="search" placeholder="搜尋標題、標籤、備註或地點" /></div><select id="home-sort" style="width:auto"><option value="newest">最新加入</option><option value="name">名稱排序</option></select></div>
+        content: `<div class="toolbar"><div class="search-wrap">${icon("search")}<input id="home-search" type="search" placeholder="搜尋標題、標籤、備註或地點" /></div><select id="home-sort" style="width:auto"><option value="newest">最新加入</option><option value="name">名稱排序</option></select></div>
           <div class="chips"><button class="chip active" data-filter="">全部</button>${state.categories.map((category) => `<button class="chip" style="--chip-color:${escapeHtml(categoryColor(category))}" data-filter="${category.id}">${escapeHtml(category.name)}</button>`).join("")}</div>
           <div id="bookmark-list" class="bookmark-list"></div>`
       });
@@ -818,22 +823,45 @@
 
     let mapsPromise = null;
     function loadGoogleMaps() {
-      if (window.google?.maps?.places) return Promise.resolve(window.google.maps);
+      if (window.google?.maps?.Map) return Promise.resolve(window.google.maps);
       if (mapsPromise) return mapsPromise;
+
       mapsPromise = new Promise((resolve, reject) => {
         const callback = `__mapsReady_${Date.now()}`;
-        const timer = setTimeout(() => reject(new Error("Google 地圖載入逾時，請檢查 API Key 與網站限制。")), 25000);
+        let settled = false;
+        let authFailed = false;
+        const finishReject = (message) => {
+          if (settled) return;
+          settled = true;
+          mapsPromise = null;
+          reject(new Error(message));
+        };
+        const timer = setTimeout(() => finishReject("Google Maps 載入逾時。請檢查帳單、Maps JavaScript API 與網站限制。"), 20000);
+
+        const previousAuthFailure = window.gm_authFailure;
+        window.gm_authFailure = () => {
+          authFailed = true;
+          clearTimeout(timer);
+          finishReject("Google Maps 驗證失敗。請確認帳單已連結、Maps JavaScript API 已啟用，且 API 金鑰允許 https://baritone90064.github.io/*。");
+          if (typeof previousAuthFailure === "function") previousAuthFailure();
+        };
+
         window[callback] = () => {
           clearTimeout(timer);
           delete window[callback];
-          if (window.google?.maps?.places) resolve(window.google.maps);
-          else reject(new Error("Google 地圖已載入，但 Places 程式庫無法使用。"));
+          setTimeout(() => {
+            if (authFailed) return;
+            if (!window.google?.maps?.Map) return finishReject("Google Maps 程式庫未正確載入。");
+            if (settled) return;
+            settled = true;
+            resolve(window.google.maps);
+          }, 250);
         };
+
         const script = document.createElement("script");
         const params = new URLSearchParams({
           key: CONFIG.googleMapsApiKey,
-          libraries: "places",
-          v: "quarterly",
+          v: "weekly",
           language: "zh-TW",
           region: "TW",
           callback,
@@ -842,91 +870,137 @@
         script.src = `https://maps.googleapis.com/maps/api/js?${params.toString()}`;
         script.async = true;
         script.defer = true;
-        script.onerror = () => { clearTimeout(timer); mapsPromise = null; reject(new Error("Google 地圖載入失敗。")); };
+        script.onerror = () => {
+          clearTimeout(timer);
+          finishReject("Google Maps JavaScript 無法下載。");
+        };
         document.head.append(script);
       });
       return mapsPromise;
     }
 
+    let leafletPromise = null;
+    function loadLeaflet() {
+      if (window.L?.map) return Promise.resolve(window.L);
+      if (leafletPromise) return leafletPromise;
+      leafletPromise = new Promise((resolve, reject) => {
+        if (!document.querySelector('link[data-leaflet]')) {
+          const css = document.createElement("link");
+          css.rel = "stylesheet";
+          css.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+          css.dataset.leaflet = "true";
+          document.head.append(css);
+        }
+        const script = document.createElement("script");
+        script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+        script.async = true;
+        script.onload = () => window.L?.map ? resolve(window.L) : reject(new Error("備援地圖程式庫載入失敗。"));
+        script.onerror = () => reject(new Error("備援地圖程式庫無法下載。"));
+        document.head.append(script);
+      });
+      return leafletPromise;
+    }
+
+    const PLUS_ALPHABET = "23456789CFGHJMPQRVWX";
+    const PAIR_RESOLUTIONS = [20, 1, 0.05, 0.0025, 0.000125];
+
+    function parseCoordinateText(raw) {
+      const cleaned = String(raw || "")
+        .trim()
+        .replace(/[()（）]/g, "")
+        .replace(/[，、；;]/g, ",");
+      const match = cleaned.match(/^\s*([+-]?\d+(?:\.\d+)?)\s*[, ]\s*([+-]?\d+(?:\.\d+)?)\s*$/);
+      if (!match) return null;
+      const latitude = Number(match[1]);
+      const longitude = Number(match[2]);
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+      if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return null;
+      return { latitude, longitude };
+    }
+
+    function extractPlusCode(raw) {
+      const candidate = String(raw || "").trim().toUpperCase().split(/[\s,，]/)[0];
+      return candidate.replace(/[^23456789CFGHJMPQRVWX+0]/g, "");
+    }
+
+    function decodeFullPlusCode(raw) {
+      const code = extractPlusCode(raw);
+      if (!/^[23456789CFGHJMPQRVWX]{8}\+[23456789CFGHJMPQRVWX]{2,7}$/.test(code)) return null;
+      const clean = code.replace("+", "").replace(/0/g, "");
+      let latitudeLo = -90;
+      let longitudeLo = -180;
+      let latitudeResolution = 20;
+      let longitudeResolution = 20;
+      const pairLength = Math.min(clean.length, 10);
+      for (let i = 0; i < pairLength; i += 2) {
+        const latitudeIndex = PLUS_ALPHABET.indexOf(clean[i]);
+        const longitudeIndex = PLUS_ALPHABET.indexOf(clean[i + 1]);
+        if (latitudeIndex < 0 || longitudeIndex < 0) return null;
+        const resolution = PAIR_RESOLUTIONS[i / 2];
+        latitudeLo += latitudeIndex * resolution;
+        longitudeLo += longitudeIndex * resolution;
+        latitudeResolution = resolution;
+        longitudeResolution = resolution;
+      }
+      for (let i = 10; i < clean.length; i += 1) {
+        const index = PLUS_ALPHABET.indexOf(clean[i]);
+        if (index < 0) return null;
+        latitudeResolution /= 5;
+        longitudeResolution /= 4;
+        latitudeLo += Math.floor(index / 4) * latitudeResolution;
+        longitudeLo += (index % 4) * longitudeResolution;
+      }
+      return {
+        latitude: Number((latitudeLo + latitudeResolution / 2).toFixed(7)),
+        longitude: Number((longitudeLo + longitudeResolution / 2).toFixed(7))
+      };
+    }
+
+    async function resolveCoordinateOrPlusCode(raw) {
+      const coordinates = parseCoordinateText(raw);
+      if (coordinates) return coordinates;
+
+      const fullPlusCode = decodeFullPlusCode(raw);
+      if (fullPlusCode) return fullPlusCode;
+
+      if (String(raw || "").includes("+")) {
+        try {
+          await loadGoogleMaps();
+          const geocoder = new google.maps.Geocoder();
+          const response = await geocoder.geocode({ address: String(raw).trim(), region: "TW" });
+          const location = response.results?.[0]?.geometry?.location;
+          if (location) return { latitude: location.lat(), longitude: location.lng() };
+        } catch (error) {
+          console.warn("Plus Code geocoding failed:", error);
+        }
+        throw new Error("這個 Plus Code 無法直接解析。請貼上完整 Plus Code，或改貼「緯度, 經度」。");
+      }
+
+      throw new Error("請貼上「緯度, 經度」，例如 (24.3523330, 121.7377273)，或貼上完整 Plus Code。");
+    }
+
+    function formatCoordinate(latitude, longitude) {
+      if (!Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude))) return "";
+      return `(${Number(latitude).toFixed(7)}, ${Number(longitude).toFixed(7)})`;
+    }
+
     function locationSection(place = {}) {
       return `<section class="form-section">
         <div class="section-head"><div class="section-title"><span class="section-icon" style="background:var(--mint-soft);color:var(--mint-deep)">${icon("location")}</span><div><h3>地點資訊</h3><small class="muted">選填；有座標才會顯示在地圖</small></div></div></div>
-        <div class="form-grid two">
-          <label class="field">地點名稱<input id="place-name" value="${escapeHtml(place.placeName || "")}" placeholder="例如：雙流國家森林遊樂區" /></label>
-          <label class="field">地址<input id="place-address" value="${escapeHtml(place.address || "")}" placeholder="戶外地點可留空" /></label>
-          <label class="field">緯度 Latitude<input id="place-latitude" inputmode="decimal" value="${place.latitude ?? ""}" placeholder="例如：25.0478" /></label>
-          <label class="field">經度 Longitude<input id="place-longitude" inputmode="decimal" value="${place.longitude ?? ""}" placeholder="例如：121.5319" /></label>
+        <div class="form-grid">
+          <label class="field">地點名稱<input id="place-name" value="${escapeHtml(place.placeName || "")}" placeholder="會先自動帶入收藏標題，仍可修改" /></label>
+          <label class="field">地址<input id="place-address" value="${escapeHtml(place.address || "")}" placeholder="戶外地點沒有地址可留空" /></label>
+          <div class="coordinate-row">
+            <label class="field">座標或 Plus Code
+              <small>可直接貼上 (24.3523330, 121.7377273) 或完整 Plus Code</small>
+              <input id="place-coordinate" autocapitalize="characters" value="${escapeHtml(formatCoordinate(place.latitude, place.longitude))}" placeholder="(24.3523330, 121.7377273)" />
+            </label>
+            <button type="button" class="btn btn-soft" id="parse-coordinate">${icon("location")}解析</button>
+          </div>
         </div>
-        <div class="place-tools"><button type="button" class="btn btn-soft" id="open-place-picker">${icon("search")}搜尋地點與地圖選點</button><button type="button" class="btn btn-secondary" id="use-current-place">${icon("compass")}使用目前位置</button><button type="button" class="btn btn-danger" id="clear-place">${icon("trash")}清除地點</button></div>
-        <div id="place-picker" class="place-picker hidden"><div class="place-search"><input id="place-search-input" placeholder="搜尋店家、景點、地址或 Plus Code" autocomplete="off" /></div><div id="place-map" class="place-map"></div></div>
-        <p class="coordinate-note">搜尋結果或點選地圖後，緯度與經度會自動填入；戶外地點沒有地址也可以儲存。</p>
+        <div class="place-tools"><button type="button" class="btn btn-secondary" id="use-current-place">${icon("compass")}使用目前位置</button><button type="button" class="btn btn-danger" id="clear-place">${icon("trash")}清除地點</button></div>
+        <p class="coordinate-note">座標會自動轉成 Geohash；短 Plus Code 若無法解析，請改貼完整 Plus Code 或經緯度。</p>
       </section>`;
-    }
-
-    async function initPlacePicker(placeState) {
-      await loadGoogleMaps();
-      const mapNode = document.querySelector("#place-map");
-      const searchInput = document.querySelector("#place-search-input");
-      const initial = Number.isFinite(Number(placeState.latitude)) && Number.isFinite(Number(placeState.longitude))
-        ? { lat: Number(placeState.latitude), lng: Number(placeState.longitude) }
-        : { lat: CONFIG.defaultCenter.latitude, lng: CONFIG.defaultCenter.longitude };
-      const mapOptions = { center: initial, zoom: placeState.latitude != null ? 16 : 11, mapTypeControl: false, streetViewControl: false, fullscreenControl: false };
-      if (CONFIG.googleMapsMapId) mapOptions.mapId = CONFIG.googleMapsMapId;
-      const map = new google.maps.Map(mapNode, mapOptions);
-      const marker = new google.maps.Marker({
-        map,
-        position: placeState.latitude != null ? initial : null,
-        draggable: true,
-        title: placeState.placeName || "選擇地點"
-      });
-
-      const syncInputs = () => {
-        document.querySelector("#place-name").value = placeState.placeName || "";
-        document.querySelector("#place-address").value = placeState.address || "";
-        document.querySelector("#place-latitude").value = placeState.latitude ?? "";
-        document.querySelector("#place-longitude").value = placeState.longitude ?? "";
-      };
-      const setPosition = (latitude, longitude, zoom = null) => {
-        placeState.latitude = Number(latitude);
-        placeState.longitude = Number(longitude);
-        const position = { lat: placeState.latitude, lng: placeState.longitude };
-        marker.setMap(map);
-        marker.setPosition(position);
-        map.panTo(position);
-        if (zoom) map.setZoom(zoom);
-        syncInputs();
-      };
-
-      marker.addListener("dragend", () => {
-        const position = marker.getPosition();
-        if (!position) return;
-        if (!placeState.placeName) placeState.placeName = "自訂地點";
-        setPosition(position.lat(), position.lng());
-      });
-      map.addListener("click", (event) => {
-        if (!event.latLng) return;
-        if (!placeState.placeName) placeState.placeName = "自訂地點";
-        setPosition(event.latLng.lat(), event.latLng.lng());
-      });
-
-      const autocomplete = new google.maps.places.Autocomplete(searchInput, {
-        fields: ["place_id", "name", "formatted_address", "geometry"],
-        componentRestrictions: { country: "tw" }
-      });
-      autocomplete.bindTo("bounds", map);
-      autocomplete.addListener("place_changed", () => {
-        const place = autocomplete.getPlace();
-        if (!place.geometry?.location) {
-          showToast("找不到此地點的座標，請改用地圖點選。", "error");
-          return;
-        }
-        placeState.placeName = place.name || "未命名地點";
-        placeState.address = place.formatted_address || "";
-        placeState.placeId = place.place_id || "";
-        setPosition(place.geometry.location.lat(), place.geometry.location.lng(), 17);
-        if (place.geometry.viewport) map.fitBounds(place.geometry.viewport);
-      });
-      return { map, marker, setPosition };
     }
 
     async function renderBookmarkForm(id = "") {
@@ -937,14 +1011,16 @@
         shell({ title: "編輯收藏", active: "add", content: `<div class="alert alert-error">找不到這筆收藏。</div>` });
         return;
       }
-      const placeState = existing?.location ? { ...existing.location } : { placeName: "", address: "", latitude: null, longitude: null, placeId: "" };
-      let picker = null;
+
+      const placeState = existing?.location
+        ? { ...existing.location }
+        : { placeName: "", address: "", latitude: null, longitude: null, placeId: "" };
 
       shell({
         title: existing ? "編輯收藏" : "新增收藏",
         subtitle: existing ? "更新內容與地點" : "快速加入你的收藏庫",
         active: "add",
-        content: `<form id="bookmark-form" class="card form-card"><div class="form-banner"><h2>${existing ? "編輯這筆收藏" : "新增一筆收藏"}</h2><p>連結、標題與分類為必填；縮圖會自動判斷，無法取得時顯示平台圖示。</p></div><div class="form-body form-grid">
+        content: `<form id="bookmark-form" class="card form-card"><div class="form-banner"><h2>${existing ? "編輯這筆收藏" : "新增一筆收藏"}</h2><p>連結、標題與分類為必填；縮圖無法取得時會顯示平台圖示。</p></div><div class="form-body form-grid">
           <section class="form-section"><div class="section-head"><div class="section-title"><span class="section-icon">${icon("link")}</span><h3>基本資料</h3></div></div><div class="form-grid">
             <label class="field">短影音連結<input id="bookmark-url" type="url" required value="${escapeHtml(existing?.url || "")}" placeholder="貼上 Threads、Facebook、Instagram、小紅書等連結" /></label>
             <div class="form-grid two"><label class="field">平台<select id="bookmark-platform">${Object.entries(PLATFORM_META).map(([value, meta]) => `<option value="${value}" ${(existing?.platform || "other") === value ? "selected" : ""}>${meta.label}</option>`).join("")}</select></label><label class="field">分類<select id="bookmark-category" required>${categoryOptions(existing?.categoryId || state.categories[0]?.id || "other")}</select></label></div>
@@ -960,58 +1036,99 @@
 
       const urlInput = document.querySelector("#bookmark-url");
       const platformSelect = document.querySelector("#bookmark-platform");
+      const titleInput = document.querySelector("#bookmark-title");
+      const placeNameInput = document.querySelector("#place-name");
+      const addressInput = document.querySelector("#place-address");
+      const coordinateInput = document.querySelector("#place-coordinate");
+
+      let placeNameManuallyEdited = Boolean(
+        existing?.location?.placeName &&
+        String(existing.location.placeName).trim() !== String(existing.title || "").trim()
+      );
+
+      if (!placeNameInput.value.trim() && titleInput.value.trim()) {
+        placeNameInput.value = titleInput.value.trim();
+        placeState.placeName = titleInput.value.trim();
+      }
+
+      titleInput.addEventListener("input", () => {
+        if (!placeNameManuallyEdited || !placeNameInput.value.trim()) {
+          placeNameInput.value = titleInput.value.trim();
+          placeState.placeName = titleInput.value.trim();
+        }
+      });
+      placeNameInput.addEventListener("input", () => {
+        placeNameManuallyEdited = placeNameInput.value.trim() !== titleInput.value.trim();
+        placeState.placeName = placeNameInput.value.trim();
+      });
+      addressInput.addEventListener("input", () => { placeState.address = addressInput.value.trim(); });
+
       urlInput.addEventListener("blur", () => { platformSelect.value = detectPlatform(urlInput.value); });
       document.querySelector("#cancel-form").addEventListener("click", () => go("home"));
 
-      const syncPlace = () => {
-        placeState.placeName = document.querySelector("#place-name").value.trim();
-        placeState.address = document.querySelector("#place-address").value.trim();
-        const latitude = Number(document.querySelector("#place-latitude").value);
-        const longitude = Number(document.querySelector("#place-longitude").value);
-        placeState.latitude = Number.isFinite(latitude) ? latitude : null;
-        placeState.longitude = Number.isFinite(longitude) ? longitude : null;
+      const applyCoordinateInput = async ({ silent = false } = {}) => {
+        const raw = coordinateInput.value.trim();
+        if (!raw) {
+          placeState.latitude = null;
+          placeState.longitude = null;
+          return false;
+        }
+        try {
+          const position = await resolveCoordinateOrPlusCode(raw);
+          placeState.latitude = Number(position.latitude);
+          placeState.longitude = Number(position.longitude);
+          coordinateInput.value = formatCoordinate(placeState.latitude, placeState.longitude);
+          if (!placeNameInput.value.trim()) {
+            placeNameInput.value = titleInput.value.trim() || "自訂地點";
+            placeState.placeName = placeNameInput.value.trim();
+          }
+          if (!silent) showToast("位置已解析。", "success");
+          return true;
+        } catch (error) {
+          if (!silent) showToast(error?.message || "無法解析位置。", "error");
+          throw error;
+        }
       };
-      ["#place-name", "#place-address", "#place-latitude", "#place-longitude"].forEach((selector) => document.querySelector(selector).addEventListener("change", syncPlace));
 
-      document.querySelector("#open-place-picker").addEventListener("click", async (event) => {
-        const panel = document.querySelector("#place-picker");
-        panel.classList.remove("hidden");
-        if (picker) { panel.scrollIntoView({ behavior: "smooth", block: "nearest" }); return; }
+      document.querySelector("#parse-coordinate").addEventListener("click", async (event) => {
         try {
           event.currentTarget.disabled = true;
-          event.currentTarget.textContent = "載入地圖中…";
-          picker = await initPlacePicker(placeState);
-          panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
-        } catch (error) {
-          console.error(error);
-          document.querySelector("#place-map").innerHTML = `<div class="empty"><p>${escapeHtml(error?.message || "地圖載入失敗。")}</p></div>`;
-          showToast(error?.message || "地圖載入失敗。", "error");
-        } finally {
-          event.currentTarget.disabled = false;
-          event.currentTarget.innerHTML = `${icon("search")}搜尋地點與地圖選點`;
-        }
+          await applyCoordinateInput();
+        } catch {}
+        finally { event.currentTarget.disabled = false; }
+      });
+
+      coordinateInput.addEventListener("change", async () => {
+        if (!coordinateInput.value.trim()) return;
+        try { await applyCoordinateInput({ silent: true }); }
+        catch {}
       });
 
       document.querySelector("#use-current-place").addEventListener("click", async (event) => {
         try {
           event.currentTarget.disabled = true;
           const position = await getCurrentPosition();
-          placeState.placeName = placeState.placeName || "目前位置";
           placeState.latitude = position.latitude;
           placeState.longitude = position.longitude;
-          document.querySelector("#place-name").value = placeState.placeName;
-          document.querySelector("#place-latitude").value = position.latitude;
-          document.querySelector("#place-longitude").value = position.longitude;
-          picker?.setPosition(position.latitude, position.longitude, 17);
+          coordinateInput.value = formatCoordinate(position.latitude, position.longitude);
+          if (!placeNameInput.value.trim()) {
+            placeNameInput.value = titleInput.value.trim() || "目前位置";
+            placeState.placeName = placeNameInput.value.trim();
+          }
           showToast("已填入目前位置。", "success");
-        } catch (error) { showToast(error?.message || "無法取得位置。", "error"); }
-        finally { event.currentTarget.disabled = false; }
+        } catch (error) {
+          showToast(error?.message || "無法取得位置。", "error");
+        } finally {
+          event.currentTarget.disabled = false;
+        }
       });
 
       document.querySelector("#clear-place").addEventListener("click", () => {
         Object.assign(placeState, { placeName: "", address: "", latitude: null, longitude: null, placeId: "" });
-        ["#place-name", "#place-address", "#place-latitude", "#place-longitude"].forEach((selector) => { document.querySelector(selector).value = ""; });
-        picker?.marker?.setPosition(null);
+        placeNameInput.value = "";
+        addressInput.value = "";
+        coordinateInput.value = "";
+        placeNameManuallyEdited = false;
         showToast("地點已清除。", "success");
       });
 
@@ -1020,27 +1137,37 @@
         const button = document.querySelector("#save-bookmark");
         try {
           button.disabled = true;
-          syncPlace();
+
+          placeState.placeName = placeNameInput.value.trim();
+          placeState.address = addressInput.value.trim();
+          if (coordinateInput.value.trim()) await applyCoordinateInput({ silent: true });
+          else {
+            placeState.latitude = null;
+            placeState.longitude = null;
+          }
+
           const url = urlInput.value.trim();
           const normalizedUrl = normalizeUrl(url);
           const duplicate = await findDuplicate(normalizedUrl);
           if (duplicate && duplicate.id !== existing?.id) throw new Error(`這個連結已收藏：${duplicate.title || "未命名收藏"}`);
+
           const hasCoordinates = Number.isFinite(Number(placeState.latitude)) && Number.isFinite(Number(placeState.longitude));
-          const hasAnyLocation = Boolean(placeState.placeName || placeState.address || placeState.latitude != null || placeState.longitude != null);
-          if (hasAnyLocation && !hasCoordinates) throw new Error("若要加入地點，請同時提供有效的緯度與經度；也可以直接在地圖上點選。" );
+          const hasAnyLocation = Boolean(placeState.placeName || placeState.address || coordinateInput.value.trim());
+          if (hasAnyLocation && !hasCoordinates) throw new Error("若要加入地點，請貼上有效的「緯度, 經度」或完整 Plus Code。");
+
           const platform = platformSelect.value;
           const input = {
             url,
             normalizedUrl,
             platform,
-            title: document.querySelector("#bookmark-title").value.trim(),
+            title: titleInput.value.trim(),
             categoryId: document.querySelector("#bookmark-category").value,
             tags: parseTags(document.querySelector("#bookmark-tags").value),
             note: document.querySelector("#bookmark-note").value.trim(),
             thumbnailUrl: inferThumbnailUrl(url, platform) || (existing?.url === url ? existing?.thumbnailUrl || "" : ""),
             hasLocation: hasCoordinates,
             location: hasCoordinates ? {
-              placeName: placeState.placeName || "自訂地點",
+              placeName: placeState.placeName || titleInput.value.trim() || "自訂地點",
               address: placeState.address || "",
               latitude: Number(placeState.latitude),
               longitude: Number(placeState.longitude),
@@ -1048,6 +1175,7 @@
               placeId: placeState.placeId || ""
             } : null
           };
+
           if (existing) {
             await updateBookmark(existing.id, input);
             Object.assign(existing, input, { updatedAt: new Date() });
@@ -1074,35 +1202,137 @@
         active: "map",
         content: `<div class="map-toolbar"><select id="map-radius"><option value="10">10 km</option><option value="20" selected>20 km</option><option value="30">30 km</option><option value="50">50 km</option></select><button class="btn btn-secondary" id="search-area">${icon("search")}搜尋此區域</button><button class="btn btn-soft" id="current-location">${icon("compass")}目前位置</button></div>
           <div class="chips" id="map-category-chips"><button class="chip active" data-map-category="">全部</button>${state.categories.map((category) => `<button class="chip" style="--chip-color:${escapeHtml(categoryColor(category))}" data-map-category="${category.id}">${escapeHtml(category.name)}</button>`).join("")}</div>
-          <div class="map-shell"><div id="map-status" class="map-status"></div><div id="main-map" class="map-canvas"></div></div><section id="map-sheet" class="map-sheet card"><span class="muted">點選地圖圖釘查看收藏。</span></section>`
+          <div class="map-shell"><div id="map-status" class="map-status"></div><div id="main-map" class="map-canvas"></div></div>
+          <p id="map-provider-note" class="map-provider-note"></p>
+          <section id="map-sheet" class="map-sheet card"><span class="muted">點選地圖圖釘查看收藏。</span></section>`
       });
 
       const status = document.querySelector("#map-status");
       const sheet = document.querySelector("#map-sheet");
+      const providerNote = document.querySelector("#map-provider-note");
       const selected = { categoryId: "", center: { ...CONFIG.defaultCenter }, records: [] };
-      let map;
-      let currentMarker;
-      let markers = [];
+      let controller = null;
 
-      const showStatus = (message = "") => { status.textContent = message; status.classList.toggle("show", Boolean(message)); };
+      const showStatus = (message = "") => {
+        status.textContent = message;
+        status.classList.toggle("show", Boolean(message));
+      };
+
+      const createGoogleController = async (node, start) => {
+        await loadGoogleMaps();
+        const map = new google.maps.Map(node, {
+          center: { lat: start.latitude, lng: start.longitude },
+          zoom: 12,
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: false,
+          gestureHandling: "greedy"
+        });
+        const currentMarker = new google.maps.Marker({
+          map,
+          position: { lat: start.latitude, lng: start.longitude },
+          title: "目前位置",
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 9,
+            fillColor: "#2f80ed",
+            fillOpacity: 1,
+            strokeColor: "#ffffff",
+            strokeWeight: 4
+          }
+        });
+        const bookmarkMarkers = [];
+        return {
+          provider: "google",
+          getCenter() {
+            const center = map.getCenter();
+            return { latitude: center.lat(), longitude: center.lng() };
+          },
+          panTo(position) { map.panTo({ lat: position.latitude, lng: position.longitude }); },
+          setZoom(zoom) { map.setZoom(zoom); },
+          setCurrentPosition(position) { currentMarker.setPosition({ lat: position.latitude, lng: position.longitude }); },
+          clearBookmarks() {
+            bookmarkMarkers.splice(0).forEach((marker) => marker.setMap(null));
+          },
+          addBookmark(bookmark, color, onClick) {
+            const marker = new google.maps.Marker({
+              map,
+              position: { lat: Number(bookmark.location.latitude), lng: Number(bookmark.location.longitude) },
+              title: bookmark.title,
+              icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 9,
+                fillColor: color,
+                fillOpacity: 1,
+                strokeColor: "#ffffff",
+                strokeWeight: 3
+              }
+            });
+            marker.addListener("click", onClick);
+            bookmarkMarkers.push(marker);
+          },
+          destroy() {}
+        };
+      };
+
+      const createLeafletController = async (node, start) => {
+        await loadLeaflet();
+        const map = L.map(node, { zoomControl: true, attributionControl: true }).setView([start.latitude, start.longitude], 12);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+          attribution: "&copy; OpenStreetMap contributors"
+        }).addTo(map);
+        const currentMarker = L.circleMarker([start.latitude, start.longitude], {
+          radius: 9,
+          color: "#ffffff",
+          weight: 4,
+          fillColor: "#2f80ed",
+          fillOpacity: 1
+        }).addTo(map);
+        const bookmarkMarkers = [];
+        setTimeout(() => map.invalidateSize(), 80);
+        return {
+          provider: "leaflet",
+          getCenter() {
+            const center = map.getCenter();
+            return { latitude: center.lat, longitude: center.lng };
+          },
+          panTo(position) { map.panTo([position.latitude, position.longitude]); },
+          setZoom(zoom) { map.setZoom(zoom); },
+          setCurrentPosition(position) { currentMarker.setLatLng([position.latitude, position.longitude]); },
+          clearBookmarks() {
+            bookmarkMarkers.splice(0).forEach((marker) => map.removeLayer(marker));
+          },
+          addBookmark(bookmark, color, onClick) {
+            const marker = L.circleMarker([Number(bookmark.location.latitude), Number(bookmark.location.longitude)], {
+              radius: 8,
+              color: "#ffffff",
+              weight: 3,
+              fillColor: color,
+              fillOpacity: 1
+            }).addTo(map);
+            marker.on("click", onClick);
+            bookmarkMarkers.push(marker);
+          },
+          destroy() { map.remove(); }
+        };
+      };
+
       const renderMarkers = () => {
-        markers.forEach((marker) => marker.setMap(null));
-        markers = [];
+        if (!controller) return;
+        controller.clearBookmarks();
         const categories = categoryMap();
-        const records = selected.categoryId ? selected.records.filter((item) => item.categoryId === selected.categoryId) : selected.records;
+        const records = selected.categoryId
+          ? selected.records.filter((item) => item.categoryId === selected.categoryId)
+          : selected.records;
+
         records.forEach((bookmark) => {
           const category = categories.get(bookmark.categoryId) || { color: "#9a96a1" };
-          const marker = new google.maps.Marker({
-            map,
-            position: { lat: Number(bookmark.location.latitude), lng: Number(bookmark.location.longitude) },
-            title: bookmark.title,
-            icon: { path: google.maps.SymbolPath.CIRCLE, scale: 9, fillColor: categoryColor(category), fillOpacity: 1, strokeColor: "#ffffff", strokeWeight: 3 }
-          });
-          marker.addListener("click", () => {
+          controller.addBookmark(bookmark, categoryColor(category), () => {
             sheet.innerHTML = `<h3>${escapeHtml(bookmark.title)}</h3><p>${escapeHtml(bookmark.location.placeName || "自訂地點")}${bookmark.distanceKm != null ? `・${bookmark.distanceKm.toFixed(bookmark.distanceKm < 10 ? 1 : 0)} km` : ""}</p>${bookmark.location.address ? `<p>${escapeHtml(bookmark.location.address)}</p>` : ""}<div class="map-sheet-actions"><a class="btn btn-small btn-soft" href="${escapeHtml(bookmark.url)}" target="_blank" rel="noreferrer">${icon("play")}開啟影片</a><a class="btn btn-small btn-primary" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${bookmark.location.latitude},${bookmark.location.longitude}`)}" target="_blank" rel="noreferrer">${icon("navigation")}導航</a></div>`;
           });
-          markers.push(marker);
         });
+
         if (!records.length) sheet.innerHTML = `<span class="muted">這個範圍內沒有符合分類的收藏。</span>`;
         else if (!sheet.querySelector("h3")) sheet.innerHTML = `<span class="muted">找到 ${records.length} 個收藏地點，點選圖釘查看。</span>`;
       };
@@ -1114,24 +1344,30 @@
           selected.records = await queryNearby(center, Number(document.querySelector("#map-radius").value));
           renderMarkers();
           showStatus("");
-        } catch (error) { console.error(error); showStatus(error?.message || "搜尋失敗。"); }
+        } catch (error) {
+          console.error(error);
+          showStatus(error?.message || "搜尋失敗。");
+        }
       };
 
       try {
-        showStatus("正在載入 Google 地圖…");
-        await loadGoogleMaps();
+        showStatus("正在載入地圖…");
         let start = { ...CONFIG.defaultCenter };
         try { start = await getCurrentPosition(); } catch {}
         selected.center = start;
-        const mapOptions = { center: { lat: start.latitude, lng: start.longitude }, zoom: 12, mapTypeControl: false, streetViewControl: false, fullscreenControl: false };
-        if (CONFIG.googleMapsMapId) mapOptions.mapId = CONFIG.googleMapsMapId;
-        map = new google.maps.Map(document.querySelector("#main-map"), mapOptions);
-        currentMarker = new google.maps.Marker({
-          map,
-          position: { lat: start.latitude, lng: start.longitude },
-          title: "目前位置",
-          icon: { path: google.maps.SymbolPath.CIRCLE, scale: 9, fillColor: "#2f80ed", fillOpacity: 1, strokeColor: "#ffffff", strokeWeight: 4 }
-        });
+        const node = document.querySelector("#main-map");
+
+        try {
+          controller = await createGoogleController(node, start);
+          providerNote.textContent = "地圖來源：Google Maps";
+        } catch (googleError) {
+          console.error("Google Maps failed:", googleError);
+          node.innerHTML = "";
+          controller = await createLeafletController(node, start);
+          providerNote.textContent = `Google Maps 尚未通過驗證，已自動切換備援地圖。${googleError?.message ? ` ${googleError.message}` : ""}`;
+        }
+
+        state.cleanup.push(() => controller?.destroy?.());
         await searchCenter(start);
       } catch (error) {
         console.error(error);
@@ -1139,20 +1375,22 @@
       }
 
       document.querySelector("#search-area").addEventListener("click", () => {
-        if (!map) return;
-        const center = map.getCenter();
-        searchCenter({ latitude: center.lat(), longitude: center.lng() });
+        if (!controller) return;
+        searchCenter(controller.getCenter());
       });
+
       document.querySelector("#current-location").addEventListener("click", async () => {
         try {
           const position = await getCurrentPosition();
-          const latLng = { lat: position.latitude, lng: position.longitude };
-          map.panTo(latLng);
-          map.setZoom(13);
-          currentMarker.setPosition(latLng);
+          controller?.panTo(position);
+          controller?.setZoom(13);
+          controller?.setCurrentPosition(position);
           await searchCenter(position);
-        } catch (error) { showToast(error?.message || "無法取得位置。", "error"); }
+        } catch (error) {
+          showToast(error?.message || "無法取得位置。", "error");
+        }
       });
+
       document.querySelector("#map-radius").addEventListener("change", () => searchCenter(selected.center));
       document.querySelectorAll("[data-map-category]").forEach((button) => button.addEventListener("click", () => {
         selected.categoryId = button.dataset.mapCategory;

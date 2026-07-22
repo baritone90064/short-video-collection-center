@@ -2,14 +2,28 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{userId} {
-      allow read, create, update, delete: if request.auth != null
-        && request.auth.uid == userId;
+    function isAllowedUser() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in [
+          "baritone90064@gmail.com",
+          "terry4410@gmail.com"
+        ];
+    }
+
+    // 兩位使用者共同讀寫同一個工作區。
+    match /workspaces/{workspaceId} {
+      allow read, write: if isAllowedUser() && workspaceId == "shared";
 
       match /{document=**} {
-        allow read, create, update, delete: if request.auth != null
-          && request.auth.uid == userId;
+        allow read, write: if isAllowedUser() && workspaceId == "shared";
       }
+    }
+
+    // 個人登入資料只讓本人存取。
+    match /users/{userId} {
+      allow read, create, update, delete: if isAllowedUser()
+        && request.auth.uid == userId;
     }
 
     match /{document=**} {

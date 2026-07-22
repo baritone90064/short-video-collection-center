@@ -34,12 +34,12 @@ const DEFAULT_CATEGORIES = [
   ["other", "其他", "●"]
 ];
 
-function categoriesRef(uid) {
-  return collection(db, "users", uid, "categories");
+function categoriesRef(_uid) {
+  return collection(db, "workspaces", CONFIG.sharedWorkspaceId, "categories");
 }
 
-function bookmarksRef(uid) {
-  return collection(db, "users", uid, "bookmarks");
+function bookmarksRef(_uid) {
+  return collection(db, "workspaces", CONFIG.sharedWorkspaceId, "bookmarks");
 }
 
 function withId(snapshot) {
@@ -82,7 +82,7 @@ export async function addCategory(uid, { name, icon, sortOrder }) {
 }
 
 export async function updateCategory(uid, categoryId, patch) {
-  await updateDoc(doc(db, "users", uid, "categories", categoryId), {
+  await updateDoc(doc(db, "workspaces", CONFIG.sharedWorkspaceId, "categories", categoryId), {
     ...patch,
     updatedAt: serverTimestamp()
   });
@@ -105,7 +105,7 @@ export async function deleteCategoryAndMove(uid, sourceCategoryId, targetCategor
     });
     await batch.commit();
   }
-  await deleteDoc(doc(db, "users", uid, "categories", sourceCategoryId));
+  await deleteDoc(doc(db, "workspaces", CONFIG.sharedWorkspaceId, "categories", sourceCategoryId));
   return docs.length;
 }
 
@@ -117,7 +117,7 @@ export async function listBookmarks(uid, maxResults = CONFIG.pageSize) {
 }
 
 export async function getBookmark(uid, bookmarkId) {
-  const snapshot = await getDoc(doc(db, "users", uid, "bookmarks", bookmarkId));
+  const snapshot = await getDoc(doc(db, "workspaces", CONFIG.sharedWorkspaceId, "bookmarks", bookmarkId));
   return snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null;
 }
 
@@ -139,14 +139,14 @@ export async function createBookmark(uid, input) {
 }
 
 export async function updateBookmark(uid, bookmarkId, input) {
-  await updateDoc(doc(db, "users", uid, "bookmarks", bookmarkId), {
+  await updateDoc(doc(db, "workspaces", CONFIG.sharedWorkspaceId, "bookmarks", bookmarkId), {
     ...input,
     updatedAt: serverTimestamp()
   });
 }
 
 export async function removeBookmark(uid, bookmarkId) {
-  await deleteDoc(doc(db, "users", uid, "bookmarks", bookmarkId));
+  await deleteDoc(doc(db, "workspaces", CONFIG.sharedWorkspaceId, "bookmarks", bookmarkId));
 }
 
 export async function queryNearbyBookmarks(uid, center, radiusKm) {

@@ -1,4 +1,4 @@
-const CACHE_NAME = "short-video-collection-v4";
+const CACHE_NAME = "short-video-collection-v5";
 const LOCAL_ASSETS = [
   "./",
   "./index.html",

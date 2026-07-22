@@ -1,5 +1,5 @@
 import { CONFIG } from "./config.js";
-import { auth, loginWithGoogle, logout, observeAuth } from "./firebase-client.js";
+import { loginWithGoogle, logout, observeAuth } from "./firebase-client.js";
 import {
   addCategory,
   createBookmark,
@@ -16,16 +16,22 @@ import {
   updateCategory,
   upsertUserProfile
 } from "./data.js";
-import { categoryEmoji, distanceKm, getCurrentPosition, toGeohash } from "./geo.js";
+import { distanceKm, getCurrentPosition, toGeohash } from "./geo.js";
 import { loadMapLibraries, loadPlacesLibrary } from "./maps-loader.js";
 import {
+  ICON_OPTIONS,
+  categoryColor,
+  categoryIconHtml,
+  categoryIconKey,
   confirmDialog,
   detectPlatform,
   downloadJson,
   escapeHtml,
   formatDate,
+  iconSvg,
   normalizeUrl,
   parseTags,
+  platformBadge,
   platformMeta,
   safeExternalUrl,
   showToast,
@@ -39,7 +45,9 @@ const state = {
   categories: [],
   bookmarks: [],
   cleanup: [],
-  authReady: false
+  authReady: false,
+  coreLoaded: false,
+  corePromise: null
 };
 
 function registerCleanup(callback) {
@@ -62,29 +70,52 @@ function go(path) {
   location.hash = path.startsWith("#") ? path : `#/${path.replace(/^\//, "")}`;
 }
 
+async function ensureCoreData(force = false) {
+  if (!state.user) return;
+  if (state.coreLoaded && !force) return;
+  if (state.corePromise && !force) return state.corePromise;
+
+  state.corePromise = (async () => {
+    await seedDefaultCategories();
+    const [categories, bookmarks] = await Promise.all([
+      listCategories(),
+      listBookmarks()
+    ]);
+    state.categories = categories;
+    state.bookmarks = bookmarks;
+    state.coreLoaded = true;
+  })().finally(() => {
+    state.corePromise = null;
+  });
+
+  return state.corePromise;
+}
+
 function navItems(active) {
   const items = [
-    ["home", "⌂", "收藏"],
-    ["map", "⌖", "地圖"],
-    ["add", "+", "新增"],
-    ["pending", "◷", "待整理"],
-    ["settings", "⚙", "我的"]
+    ["home", "home", "收藏"],
+    ["map", "map", "地圖"],
+    ["add", "plus", "新增"],
+    ["settings", "user", "我的"]
   ];
   return items.map(([key, icon, label]) => `
-    <button class="nav-item ${key === active ? "active" : ""} ${key === "add" ? "add-nav" : ""}" data-nav="${key}">
-      <span class="nav-icon">${icon}</span>
-      ${key === "add" ? "" : `<span>${label}</span>`}
+    <button class="nav-item ${key === active ? "active" : ""} ${key === "add" ? "add-nav" : ""}" data-nav="${key}" aria-label="${escapeHtml(label)}">
+      <span class="nav-icon">${iconSvg(icon)}</span>
+      <span>${label}</span>
     </button>
   `).join("");
 }
 
-function renderShell({ title, active, content, actions = "" }) {
+function renderShell({ title, subtitle = "", active, content, actions = "" }) {
   appRoot.innerHTML = `
     <div class="app-shell">
       <header class="topbar">
         <div class="topbar-title">
-          <div class="brand-mark" style="width:40px;height:40px;border-radius:13px;font-size:17px">▶</div>
-          <strong>${escapeHtml(title)}</strong>
+          <div class="brand-logo">▶</div>
+          <div class="topbar-copy">
+            <strong>${escapeHtml(title)}</strong>
+            ${subtitle ? `<small>${escapeHtml(subtitle)}</small>` : ""}
+          </div>
         </div>
         <div class="topbar-actions">${actions}</div>
       </header>
@@ -102,7 +133,7 @@ function renderLoading(title = "載入中…", active = "home") {
   renderShell({
     title,
     active,
-    content: `<div class="empty-state"><div class="empty-icon">⏳</div><p>資料載入中…</p></div>`
+    content: `<div class="card loading-card"><div class="spinner"></div><p>正在同步收藏資料…</p></div>`
   });
 }
 
@@ -113,37 +144,27 @@ function renderLogin(errorMessage = "") {
       <section class="login-card card">
         <div class="login-logo">▶</div>
         <h1>${escapeHtml(CONFIG.appName)}</h1>
-        <p>收藏 Threads、Facebook、Instagram、小紅書等短影音連結，並在地圖查看附近的景點、餐廳與其他收藏。</p>
+        <p>把喜歡的短影音變成可搜尋、可分類、可在地圖探索的靈感收藏庫。</p>
         ${errorMessage ? `<div class="alert alert-error">${escapeHtml(errorMessage)}</div>` : ""}
         <button id="google-login" class="btn google-btn">
-          <span style="font-size:20px">G</span> 使用 Google 帳號登入
+          <span class="google-g">G</span> 使用 Google 帳號登入
         </button>
-        <p class="small muted">僅限指定的兩個 Google 帳號登入，兩人共同編輯同一份收藏資料。</p>
+        <p class="small muted">兩位授權使用者共同編輯同一份收藏資料。</p>
       </section>
     </div>
   `;
+
   document.querySelector("#google-login")?.addEventListener("click", async (event) => {
     const button = event.currentTarget;
     try {
       button.disabled = true;
-      button.textContent = "登入中…";
+      button.innerHTML = `<span class="spinner" style="width:20px;height:20px;border-width:3px"></span> 登入中…`;
       await loginWithGoogle();
     } catch (error) {
       console.error(error);
       renderLogin(error?.message || "Google 登入失敗。");
-    } finally {
-      button.disabled = false;
     }
   });
-}
-
-async function refreshCoreData() {
-  if (!state.user) return;
-  await seedDefaultCategories(state.user.uid);
-  [state.categories, state.bookmarks] = await Promise.all([
-    listCategories(state.user.uid),
-    listBookmarks(state.user.uid)
-  ]);
 }
 
 function categoryMap() {
@@ -153,44 +174,46 @@ function categoryMap() {
 function categoryOptions(selectedId = "") {
   return state.categories
     .filter((category) => category.active || category.id === selectedId)
-    .map((category) => `<option value="${escapeHtml(category.id)}" ${category.id === selectedId ? "selected" : ""}>${escapeHtml(category.icon)} ${escapeHtml(category.name)}</option>`)
+    .map((category) => `<option value="${escapeHtml(category.id)}" ${category.id === selectedId ? "selected" : ""}>${escapeHtml(category.name)}</option>`)
     .join("");
 }
 
 function fallbackThumb(platform) {
   const meta = platformMeta(platform);
-  return `<div class="platform-fallback"><span class="platform-icon">${escapeHtml(meta.icon)}</span><small>${escapeHtml(meta.label)}</small></div>`;
+  return `<div class="platform-fallback">${platformBadge(platform)}<span class="platform-name">${escapeHtml(meta.label)}</span></div>`;
 }
 
 function bookmarkCard(bookmark, categories, currentPosition = null) {
-  const category = categories.get(bookmark.categoryId);
+  const category = categories.get(bookmark.categoryId) || { id: "other", name: "其他", icon: "other" };
   const meta = platformMeta(bookmark.platform);
-  const distance = currentPosition && bookmark.location
-    ? distanceKm(currentPosition, bookmark.location)
-    : null;
+  const distance = currentPosition && bookmark.location ? distanceKm(currentPosition, bookmark.location) : null;
   const image = bookmark.thumbnailUrl
     ? `<img src="${escapeHtml(bookmark.thumbnailUrl)}" alt="" loading="lazy" data-thumb-platform="${escapeHtml(bookmark.platform)}" />`
     : fallbackThumb(bookmark.platform);
+
   return `
     <article class="bookmark-card card" data-bookmark-card="${escapeHtml(bookmark.id)}">
-      <div class="thumb-wrap">${image}</div>
+      <div class="bookmark-cover">
+        ${image}
+        <div class="bookmark-category-float">
+          ${categoryIconHtml(category)}
+          <span>${escapeHtml(category.name)}</span>
+        </div>
+      </div>
       <div class="bookmark-body">
         <h3 class="bookmark-title">${escapeHtml(bookmark.title || "未命名收藏")}</h3>
         <div class="bookmark-meta">
-          <span>${escapeHtml(meta.label)}</span>
-          <span>${escapeHtml(category?.icon || "●")} ${escapeHtml(category?.name || "未分類")}</span>
-          ${bookmark.location?.placeName ? `<span>📌 ${escapeHtml(bookmark.location.placeName)}</span>` : ""}
-          ${distance != null ? `<span>${distance.toFixed(distance < 10 ? 1 : 0)} km</span>` : ""}
+          <span class="meta-item">${platformBadge(bookmark.platform, "small")} ${escapeHtml(meta.label)}</span>
+          ${bookmark.location?.placeName ? `<span class="meta-item">${iconSvg("location")} ${escapeHtml(bookmark.location.placeName)}</span>` : ""}
+          ${distance != null ? `<span class="meta-item">${iconSvg("compass")} ${distance.toFixed(distance < 10 ? 1 : 0)} km</span>` : ""}
+          ${bookmark.createdAt ? `<span class="meta-item">${formatDate(bookmark.createdAt)}</span>` : ""}
         </div>
         ${bookmark.tags?.length ? `<div class="tag-list">${bookmark.tags.map((tag) => `<span class="tag">#${escapeHtml(tag)}</span>`).join("")}</div>` : ""}
         ${bookmark.note ? `<div class="bookmark-note">${escapeHtml(bookmark.note)}</div>` : ""}
-        <div>
-          <span class="status-pill ${bookmark.status === "pending" ? "status-pending" : "status-active"}">${bookmark.status === "pending" ? "待整理" : "已整理"}</span>
-        </div>
         <div class="card-actions">
-          <a class="btn btn-soft" href="${escapeHtml(safeExternalUrl(bookmark.url))}" target="_blank" rel="noreferrer">開啟影片</a>
-          <button class="btn btn-secondary" data-edit-bookmark="${escapeHtml(bookmark.id)}">編輯</button>
-          <button class="btn btn-danger" data-delete-bookmark="${escapeHtml(bookmark.id)}">刪除</button>
+          <a class="btn btn-coral-soft" href="${escapeHtml(safeExternalUrl(bookmark.url))}" target="_blank" rel="noreferrer">${iconSvg("play")} 開啟</a>
+          <button class="btn btn-secondary" data-edit-bookmark="${escapeHtml(bookmark.id)}">${iconSvg("edit")} 編輯</button>
+          <button class="btn btn-danger" data-delete-bookmark="${escapeHtml(bookmark.id)}" aria-label="刪除">${iconSvg("trash")}</button>
         </div>
       </div>
     </article>
@@ -212,50 +235,46 @@ function bindBookmarkCardActions(onChanged) {
       if (!bookmark || !confirmDialog(`確定刪除「${bookmark.title || "未命名收藏"}」？`)) return;
       try {
         button.disabled = true;
-        await removeBookmark(state.user.uid, bookmark.id);
+        await removeBookmark(bookmark.id);
         state.bookmarks = state.bookmarks.filter((item) => item.id !== bookmark.id);
         showToast("收藏已刪除。", "success");
         onChanged?.();
       } catch (error) {
         console.error(error);
         showToast(error?.message || "刪除失敗。", "error");
+        button.disabled = false;
       }
     });
   });
 }
 
-async function renderCollectionPage({ pendingOnly = false }) {
+async function renderCollectionPage() {
   clearPage();
-  renderLoading(pendingOnly ? "待整理" : "我的收藏", pendingOnly ? "pending" : "home");
-  try {
-    await refreshCoreData();
-  } catch (error) {
-    console.error(error);
-    renderShell({
-      title: pendingOnly ? "待整理" : "我的收藏",
-      active: pendingOnly ? "pending" : "home",
-      content: `<div class="alert alert-error">${escapeHtml(error?.message || "無法讀取資料。")}</div>`
-    });
-    return;
-  }
+  await ensureCoreData();
 
-  const local = {
-    search: "",
-    categoryId: "",
-    sort: "newest",
-    position: null
-  };
+  const local = { search: "", categoryId: "", sort: "newest", position: null };
   const categories = categoryMap();
+  const locationCount = state.bookmarks.filter((item) => item.hasLocation).length;
 
   renderShell({
-    title: pendingOnly ? "待整理" : "我的收藏",
-    active: pendingOnly ? "pending" : "home",
-    actions: `<button class="btn btn-primary hide-mobile" id="top-add">＋ 新增收藏</button>`,
+    title: "我的收藏",
+    subtitle: "短影音靈感，一次整理",
+    active: "home",
+    actions: `<button class="btn btn-primary hide-mobile" id="top-add">${iconSvg("plus")} 新增收藏</button>`,
     content: `
+      <section class="hero">
+        <h1>今天想探索什麼？</h1>
+        <p>從收藏影片快速找到景點、餐廳、知識與生活靈感。</p>
+        <div class="hero-stats">
+          <span class="hero-stat">${state.bookmarks.length} 筆收藏</span>
+          <span class="hero-stat">${locationCount} 個地點</span>
+          <span class="hero-stat">${state.categories.filter((item) => item.active).length} 種分類</span>
+        </div>
+      </section>
       <section>
         <div class="toolbar">
-          <input class="grow" id="collection-search" type="search" placeholder="搜尋標題、標籤、備註或地點" />
-          <select id="collection-sort" style="width:auto">
+          <div class="search-box">${iconSvg("search")}<input id="collection-search" type="search" placeholder="搜尋標題、標籤、備註或地點" /></div>
+          <select id="collection-sort" style="width:auto" aria-label="排序方式">
             <option value="newest">最新加入</option>
             <option value="name">名稱</option>
             <option value="distance">距離目前位置</option>
@@ -263,7 +282,7 @@ async function renderCollectionPage({ pendingOnly = false }) {
         </div>
         <div class="chips" id="category-chips">
           <button class="chip active" data-category-filter="">全部</button>
-          ${state.categories.filter((category) => category.active).map((category) => `<button class="chip" data-category-filter="${escapeHtml(category.id)}">${escapeHtml(category.icon)} ${escapeHtml(category.name)}</button>`).join("")}
+          ${state.categories.filter((category) => category.active).map((category) => `<button class="chip" data-category-filter="${escapeHtml(category.id)}"><span class="category-chip-dot" style="--category-color:${escapeHtml(categoryColor(category))}"></span>${escapeHtml(category.name)}</button>`).join("")}
         </div>
         <div id="collection-result" style="margin-top:12px"></div>
       </section>
@@ -274,7 +293,7 @@ async function renderCollectionPage({ pendingOnly = false }) {
 
   const update = () => {
     const queryText = local.search.trim().toLowerCase();
-    let records = state.bookmarks.filter((bookmark) => pendingOnly ? bookmark.status === "pending" : true);
+    let records = [...state.bookmarks];
     if (local.categoryId) records = records.filter((bookmark) => bookmark.categoryId === local.categoryId);
     if (queryText) {
       records = records.filter((bookmark) => [
@@ -300,7 +319,7 @@ async function renderCollectionPage({ pendingOnly = false }) {
     const result = document.querySelector("#collection-result");
     result.innerHTML = records.length
       ? `<div class="bookmark-grid">${records.map((bookmark) => bookmarkCard(bookmark, categories, local.position)).join("")}</div>`
-      : `<div class="empty-state card"><div class="empty-icon">${pendingOnly ? "✓" : "☆"}</div><p>${pendingOnly ? "目前沒有待整理的收藏。" : "尚未找到符合條件的收藏。"}</p></div>`;
+      : `<div class="empty-state card"><div class="empty-illustration">${iconSvg("sparkles")}</div><h3>還沒有符合條件的收藏</h3><p>換個分類或關鍵字看看。</p></div>`;
     bindBookmarkCardActions(update);
   };
 
@@ -332,21 +351,33 @@ async function renderCollectionPage({ pendingOnly = false }) {
   update();
 }
 
-function locationFields(place = null) {
+function locationSection(place = null) {
   return `
-    <div class="form-grid two">
-      <label class="field">地點名稱<input id="place-name" type="text" value="${escapeHtml(place?.placeName || "")}" placeholder="例如：雙流國家森林遊樂區" /></label>
-      <label class="field">地址<input id="place-address" type="text" value="${escapeHtml(place?.address || "")}" placeholder="搜尋後會自動帶入，也可手動修改" /></label>
-      <label class="field">緯度<input id="place-latitude" type="text" inputmode="decimal" value="${place?.latitude ?? ""}" /></label>
-      <label class="field">經度<input id="place-longitude" type="text" inputmode="decimal" value="${place?.longitude ?? ""}" /></label>
-    </div>
-    <div class="toolbar" style="margin-top:10px">
-      <button type="button" class="btn btn-secondary" id="use-current-place">使用目前位置</button>
-      <button type="button" class="btn btn-danger" id="clear-place">清除地點</button>
-    </div>
-    <div id="autocomplete-host" class="autocomplete-host"></div>
-    <div id="place-map" class="place-picker-map"></div>
-    <p class="small muted">搜尋不到時，可直接點地圖或拖曳圖釘；最終以緯度、經度作為地圖標記位置。</p>
+    <section class="form-section location-section">
+      <div class="location-head">
+        <div class="location-head-copy">
+          <span class="section-icon" style="background:var(--mint-soft);color:var(--mint-deep)">${iconSvg("location")}</span>
+          <div><h3>地點資訊</h3><span class="small muted">選填；有座標才會顯示在收藏地圖</span></div>
+        </div>
+        <span class="location-badge">可手動輸入</span>
+      </div>
+      <div class="form-grid two">
+        <label class="field">地點名稱<input id="place-name" type="text" value="${escapeHtml(place?.placeName || "")}" placeholder="例如：雙流國家森林遊樂區" /></label>
+        <label class="field">地址<input id="place-address" type="text" value="${escapeHtml(place?.address || "")}" placeholder="可搜尋後自動帶入，也可自行輸入" /></label>
+        <label class="field">緯度 Latitude<input id="place-latitude" type="text" inputmode="decimal" value="${place?.latitude ?? ""}" placeholder="例如：25.0478" /></label>
+        <label class="field">經度 Longitude<input id="place-longitude" type="text" inputmode="decimal" value="${place?.longitude ?? ""}" placeholder="例如：121.5319" /></label>
+      </div>
+      <div class="place-tools">
+        <button type="button" class="btn btn-soft" id="open-place-picker">${iconSvg("search")} 搜尋地點與地圖選點</button>
+        <button type="button" class="btn btn-secondary" id="use-current-place">${iconSvg("compass")} 使用目前位置</button>
+        <button type="button" class="btn btn-danger" id="clear-place">${iconSvg("trash")} 清除地點</button>
+      </div>
+      <div id="place-picker-panel" class="place-picker-wrap hidden">
+        <div id="autocomplete-host" class="autocomplete-host"></div>
+        <div id="place-map" class="place-picker-map"></div>
+      </div>
+      <p class="coordinate-note">搜尋不到時，可直接輸入地址與座標；系統會依緯度、經度產生 Geohash。</p>
+    </section>
   `;
 }
 
@@ -354,28 +385,35 @@ async function initPlacePicker(placeState) {
   const host = document.querySelector("#autocomplete-host");
   const mapNode = document.querySelector("#place-map");
   if (!host || !mapNode) return null;
+
+  mapNode.innerHTML = `<div class="map-placeholder"><div><div class="spinner" style="margin:0 auto 10px"></div><p>正在載入 Google 地圖…</p></div></div>`;
+
   try {
-    const [{ Map, AdvancedMarkerElement }, placesLibrary] = await Promise.all([
-      loadMapLibraries(),
-      loadPlacesLibrary()
-    ]);
-    const initial = placeState.latitude != null && placeState.longitude != null
+    const [mapLibrary, placesLibrary] = await Promise.all([loadMapLibraries(), loadPlacesLibrary()]);
+    const { Map, AdvancedMarkerElement, PinElement } = mapLibrary;
+    const initial = Number.isFinite(Number(placeState.latitude)) && Number.isFinite(Number(placeState.longitude))
       ? { lat: Number(placeState.latitude), lng: Number(placeState.longitude) }
       : CONFIG.defaultCenter;
+
+    mapNode.replaceChildren();
     const map = new Map(mapNode, {
       center: initial,
-      zoom: placeState.latitude != null ? 16 : 11,
+      zoom: Number.isFinite(Number(placeState.latitude)) ? 16 : 11,
       mapId: CONFIG.googleMapsMapId,
       mapTypeControl: false,
       streetViewControl: false,
-      fullscreenControl: false
+      fullscreenControl: false,
+      clickableIcons: false
     });
+
+    const pin = new PinElement({ background: "#f47b64", borderColor: "#ffffff", glyphColor: "#ffffff", glyphText: "●", scale: 1.12 });
     const marker = new AdvancedMarkerElement({
       map,
-      position: placeState.latitude != null ? initial : null,
+      position: Number.isFinite(Number(placeState.latitude)) ? initial : null,
       gmpDraggable: true,
       title: placeState.placeName || "選擇地點"
     });
+    marker.append(pin);
 
     const syncInputs = () => {
       const name = document.querySelector("#place-name");
@@ -388,12 +426,13 @@ async function initPlacePicker(placeState) {
       if (lng) lng.value = placeState.longitude ?? "";
     };
 
-    const setPosition = (latitude, longitude) => {
+    const setPosition = (latitude, longitude, zoom = null) => {
       placeState.latitude = Number(latitude);
       placeState.longitude = Number(longitude);
       marker.position = { lat: placeState.latitude, lng: placeState.longitude };
       marker.title = placeState.placeName || "自訂地點";
       map.panTo({ lat: placeState.latitude, lng: placeState.longitude });
+      if (zoom) map.setZoom(zoom);
       syncInputs();
     };
 
@@ -405,6 +444,7 @@ async function initPlacePicker(placeState) {
       if (!placeState.placeName) placeState.placeName = "自訂地點";
       setPosition(latitude, longitude);
     });
+
     map.addListener("click", (event) => {
       if (!event.latLng) return;
       if (!placeState.placeName) placeState.placeName = "自訂地點";
@@ -418,17 +458,16 @@ async function initPlacePicker(placeState) {
     host.replaceChildren(autocomplete);
     autocomplete.addEventListener("gmp-select", async (event) => {
       try {
-        const place = event.placePrediction.toPlace();
-        await place.fetchFields({
-          fields: ["id", "displayName", "formattedAddress", "location", "viewport"]
-        });
+        const prediction = event.placePrediction;
+        if (!prediction) throw new Error("未取得地點搜尋結果。");
+        const place = prediction.toPlace();
+        await place.fetchFields({ fields: ["id", "displayName", "formattedAddress", "location", "viewport"] });
         if (!place.location) throw new Error("此地點沒有座標。");
-        placeState.placeName = place.displayName || "未命名地點";
-        placeState.address = place.formattedAddress || "";
-        placeState.placeId = place.id || "";
-        setPosition(place.location.lat(), place.location.lng());
+        placeState.placeName = String(place.displayName || "未命名地點");
+        placeState.address = String(place.formattedAddress || "");
+        placeState.placeId = String(place.id || "");
+        setPosition(place.location.lat(), place.location.lng(), 17);
         if (place.viewport) map.fitBounds(place.viewport);
-        else map.setZoom(17);
       } catch (error) {
         console.error(error);
         showToast(error?.message || "無法取得地點資料。", "error");
@@ -438,63 +477,69 @@ async function initPlacePicker(placeState) {
     return { map, marker, syncInputs, setPosition };
   } catch (error) {
     console.error(error);
-    mapNode.innerHTML = `<div class="empty-state"><p>${escapeHtml(error?.message || "地圖載入失敗。")}</p><p class="small">仍可手動填入地點名稱、地址與經緯度。</p></div>`;
-    return null;
+    mapNode.innerHTML = `<div class="map-placeholder"><div>${iconSvg("map")}<p>${escapeHtml(error?.message || "地圖載入失敗。")}</p><p class="small">你仍可手動填入地址、緯度與經度。</p></div></div>`;
+    throw error;
   }
 }
 
 async function renderBookmarkForm(bookmarkId = "") {
   clearPage();
-  renderLoading(bookmarkId ? "編輯收藏" : "新增收藏", "add");
-  try {
-    await refreshCoreData();
-  } catch (error) {
-    renderShell({ title: "新增收藏", active: "add", content: `<div class="alert alert-error">${escapeHtml(error?.message || "無法讀取資料。")}</div>` });
-    return;
-  }
-  const existing = bookmarkId ? await getBookmark(state.user.uid, bookmarkId) : null;
+  await ensureCoreData();
+
+  const existing = bookmarkId
+    ? state.bookmarks.find((item) => item.id === bookmarkId) || await getBookmark(bookmarkId)
+    : null;
   if (bookmarkId && !existing) {
     renderShell({ title: "編輯收藏", active: "add", content: `<div class="alert alert-error">找不到這筆收藏。</div>` });
     return;
   }
+
   const placeState = existing?.location ? { ...existing.location } : {
-    placeName: "",
-    address: "",
-    latitude: null,
-    longitude: null,
-    placeId: ""
+    placeName: "", address: "", latitude: null, longitude: null, placeId: ""
   };
   let picker = null;
+  let pickerLoading = false;
 
   renderShell({
     title: existing ? "編輯收藏" : "新增收藏",
+    subtitle: existing ? "更新內容與地點" : "把靈感收進你的收藏庫",
     active: "add",
     content: `
-      <form id="bookmark-form" class="card panel form-grid">
-        <div class="form-grid two">
-          <label class="field">短影音連結
-            <input id="bookmark-url" type="url" required value="${escapeHtml(existing?.url || "")}" placeholder="貼上 Threads、FB、IG、小紅書等連結" />
-          </label>
-          <label class="field">平台
-            <select id="bookmark-platform">
-              ${Object.entries({ threads:"Threads", instagram:"Instagram", facebook:"Facebook", xiaohongshu:"小紅書", tiktok:"TikTok", youtube:"YouTube", other:"其他" }).map(([value,label]) => `<option value="${value}" ${(existing?.platform || "other") === value ? "selected" : ""}>${label}</option>`).join("")}
-            </select>
-          </label>
+      <form id="bookmark-form" class="card form-page-card">
+        <div class="form-banner">
+          <h2>${existing ? "編輯這筆收藏" : "新增一筆短影音收藏"}</h2>
+          <p>連結、標題與分類為必填；縮圖與地點都可以稍後補上。</p>
         </div>
-        <label class="field">標題<input id="bookmark-title" type="text" required maxlength="160" value="${escapeHtml(existing?.title || "")}" placeholder="請輸入便於日後辨識的標題" /></label>
-        <div class="form-grid two">
-          <label class="field">分類<select id="bookmark-category" required>${categoryOptions(existing?.categoryId || state.categories.find((category) => category.active)?.id || "other")}</select></label>
-          <label class="field">狀態<select id="bookmark-status"><option value="active" ${existing?.status !== "pending" ? "selected" : ""}>已整理</option><option value="pending" ${existing?.status === "pending" ? "selected" : ""}>待整理</option></select></label>
-        </div>
-        <label class="field">標籤<small>以逗號分隔，例如：花蓮, 瀑布, 車宿</small><input id="bookmark-tags" type="text" value="${escapeHtml((existing?.tags || []).join(", "))}" /></label>
-        <label class="field">縮圖網址（選填）<small>只儲存外部網址；讀取失敗時顯示平台圖示。</small><input id="bookmark-thumbnail" type="url" value="${escapeHtml(existing?.thumbnailUrl || "")}" /></label>
-        <label class="field">個人備註<textarea id="bookmark-note" maxlength="3000">${escapeHtml(existing?.note || "")}</textarea></label>
-        <label class="check-row"><input id="has-location" type="checkbox" ${existing?.hasLocation ? "checked" : ""} /><strong>這筆收藏包含特定地點</strong></label>
-        <section id="location-section" class="place-section ${existing?.hasLocation ? "" : "hidden"}">${existing?.hasLocation ? locationFields(placeState) : ""}</section>
-        <div id="form-message"></div>
-        <div class="form-actions">
-          <button type="button" class="btn btn-secondary" id="cancel-form">取消</button>
-          <button type="submit" class="btn btn-primary" id="save-bookmark">${existing ? "儲存修改" : "新增收藏"}</button>
+        <div class="form-content form-grid">
+          <section class="form-section">
+            <div class="section-title"><div class="section-title-copy"><span class="section-icon">${iconSvg("link")}</span><h3>基本資料</h3></div></div>
+            <div class="form-grid two">
+              <label class="field">短影音連結<input id="bookmark-url" type="url" required value="${escapeHtml(existing?.url || "")}" placeholder="貼上 Threads、FB、IG、小紅書等連結" /></label>
+              <label class="field">平台<select id="bookmark-platform">
+                ${Object.entries({ threads:"Threads", instagram:"Instagram", facebook:"Facebook", xiaohongshu:"小紅書", tiktok:"TikTok", youtube:"YouTube", other:"其他" }).map(([value,label]) => `<option value="${value}" ${(existing?.platform || "other") === value ? "selected" : ""}>${label}</option>`).join("")}
+              </select></label>
+            </div>
+            <div class="form-grid" style="margin-top:14px">
+              <label class="field">標題<input id="bookmark-title" type="text" required maxlength="160" value="${escapeHtml(existing?.title || "")}" placeholder="請輸入便於日後辨識的標題" /></label>
+              <div class="form-grid two">
+                <label class="field">分類<select id="bookmark-category" required>${categoryOptions(existing?.categoryId || state.categories.find((category) => category.active)?.id || "other")}</select></label>
+                <label class="field">標籤<small>以逗號分隔，例如：花蓮, 瀑布, 車宿</small><input id="bookmark-tags" type="text" value="${escapeHtml((existing?.tags || []).join(", "))}" /></label>
+              </div>
+            </div>
+          </section>
+          <section class="form-section">
+            <div class="section-title"><div class="section-title-copy"><span class="section-icon" style="background:#fff1df;color:#a66a18">${iconSvg("image")}</span><h3>補充資訊</h3></div></div>
+            <div class="form-grid">
+              <label class="field">縮圖網址（選填）<small>只保存外部圖片網址；失效時會自動顯示平台圖示。</small><input id="bookmark-thumbnail" type="url" value="${escapeHtml(existing?.thumbnailUrl || "")}" /></label>
+              <label class="field">個人備註<textarea id="bookmark-note" maxlength="3000" placeholder="記錄推薦餐點、交通方式、購買原因或重點摘要…">${escapeHtml(existing?.note || "")}</textarea></label>
+            </div>
+          </section>
+          ${locationSection(placeState)}
+          <div id="form-message"></div>
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" id="cancel-form">取消</button>
+            <button type="submit" class="btn btn-primary" id="save-bookmark">${iconSvg("check")} ${existing ? "儲存修改" : "新增收藏"}</button>
+          </div>
         </div>
       </form>
     `
@@ -508,67 +553,75 @@ async function renderBookmarkForm(bookmarkId = "") {
   });
   document.querySelector("#cancel-form").addEventListener("click", () => history.length > 1 ? history.back() : go("home"));
 
-  const bindLocationInputs = () => {
-    const name = document.querySelector("#place-name");
-    const address = document.querySelector("#place-address");
-    const latitude = document.querySelector("#place-latitude");
-    const longitude = document.querySelector("#place-longitude");
-    name?.addEventListener("input", (event) => { placeState.placeName = event.target.value; });
-    address?.addEventListener("input", (event) => { placeState.address = event.target.value; });
-    latitude?.addEventListener("change", (event) => {
-      const value = Number(event.target.value);
-      if (Number.isFinite(value)) {
-        placeState.latitude = value;
-        if (Number.isFinite(Number(placeState.longitude))) picker?.setPosition(placeState.latitude, Number(placeState.longitude));
-      }
-    });
-    longitude?.addEventListener("change", (event) => {
-      const value = Number(event.target.value);
-      if (Number.isFinite(value)) {
-        placeState.longitude = value;
-        if (Number.isFinite(Number(placeState.latitude))) picker?.setPosition(Number(placeState.latitude), placeState.longitude);
-      }
-    });
-    document.querySelector("#use-current-place")?.addEventListener("click", async () => {
-      try {
-        const position = await getCurrentPosition();
-        if (!placeState.placeName) placeState.placeName = "目前位置";
-        placeState.latitude = position.latitude;
-        placeState.longitude = position.longitude;
-        picker?.setPosition(position.latitude, position.longitude);
-        picker?.map?.setZoom(17);
-      } catch (error) {
-        showToast(error?.message || "無法取得位置。", "error");
-      }
-    });
-    document.querySelector("#clear-place")?.addEventListener("click", () => {
-      placeState.placeName = "";
-      placeState.address = "";
-      placeState.latitude = null;
-      placeState.longitude = null;
-      placeState.placeId = "";
-      document.querySelector("#place-name").value = "";
-      document.querySelector("#place-address").value = "";
-      document.querySelector("#place-latitude").value = "";
-      document.querySelector("#place-longitude").value = "";
-      if (picker?.marker) picker.marker.position = null;
-    });
+  const syncPlaceStateFromInputs = () => {
+    placeState.placeName = document.querySelector("#place-name").value.trim();
+    placeState.address = document.querySelector("#place-address").value.trim();
+    const lat = Number(document.querySelector("#place-latitude").value);
+    const lng = Number(document.querySelector("#place-longitude").value);
+    placeState.latitude = Number.isFinite(lat) ? lat : null;
+    placeState.longitude = Number.isFinite(lng) ? lng : null;
   };
 
-  const showLocation = async () => {
-    const section = document.querySelector("#location-section");
-    section.classList.remove("hidden");
-    if (!section.innerHTML.trim()) section.innerHTML = locationFields(placeState);
-    bindLocationInputs();
-    picker = await initPlacePicker(placeState);
-  };
-  if (existing?.hasLocation) {
-    bindLocationInputs();
-    picker = await initPlacePicker(placeState);
-  }
-  document.querySelector("#has-location").addEventListener("change", async (event) => {
-    if (event.target.checked) await showLocation();
-    else document.querySelector("#location-section").classList.add("hidden");
+  ["#place-name", "#place-address"].forEach((selector) => {
+    document.querySelector(selector).addEventListener("input", syncPlaceStateFromInputs);
+  });
+  ["#place-latitude", "#place-longitude"].forEach((selector) => {
+    document.querySelector(selector).addEventListener("change", () => {
+      syncPlaceStateFromInputs();
+      if (picker && Number.isFinite(Number(placeState.latitude)) && Number.isFinite(Number(placeState.longitude))) {
+        picker.setPosition(placeState.latitude, placeState.longitude, 16);
+      }
+    });
+  });
+
+  document.querySelector("#open-place-picker").addEventListener("click", async (event) => {
+    const panel = document.querySelector("#place-picker-panel");
+    panel.classList.remove("hidden");
+    if (picker || pickerLoading) {
+      panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      return;
+    }
+    try {
+      pickerLoading = true;
+      event.currentTarget.disabled = true;
+      event.currentTarget.innerHTML = `<span class="spinner" style="width:18px;height:18px;border-width:3px"></span> 載入地圖中…`;
+      picker = await initPlacePicker(placeState);
+      panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    } catch {
+      // 錯誤已顯示在地圖區域；仍可手動輸入。
+    } finally {
+      pickerLoading = false;
+      event.currentTarget.disabled = false;
+      event.currentTarget.innerHTML = `${iconSvg("search")} 搜尋地點與地圖選點`;
+    }
+  });
+
+  document.querySelector("#use-current-place").addEventListener("click", async (event) => {
+    try {
+      event.currentTarget.disabled = true;
+      const position = await getCurrentPosition();
+      if (!placeState.placeName) placeState.placeName = "目前位置";
+      placeState.latitude = position.latitude;
+      placeState.longitude = position.longitude;
+      document.querySelector("#place-name").value = placeState.placeName;
+      document.querySelector("#place-latitude").value = position.latitude;
+      document.querySelector("#place-longitude").value = position.longitude;
+      picker?.setPosition(position.latitude, position.longitude, 17);
+      showToast("已填入目前位置座標。", "success");
+    } catch (error) {
+      showToast(error?.message || "無法取得位置。", "error");
+    } finally {
+      event.currentTarget.disabled = false;
+    }
+  });
+
+  document.querySelector("#clear-place").addEventListener("click", () => {
+    Object.assign(placeState, { placeName: "", address: "", latitude: null, longitude: null, placeId: "" });
+    ["#place-name", "#place-address", "#place-latitude", "#place-longitude"].forEach((selector) => {
+      document.querySelector(selector).value = "";
+    });
+    if (picker?.marker) picker.marker.position = null;
+    showToast("地點資料已清除。", "success");
   });
 
   document.querySelector("#bookmark-form").addEventListener("submit", async (event) => {
@@ -580,27 +633,27 @@ async function renderBookmarkForm(bookmarkId = "") {
       message.innerHTML = "";
       const url = urlInput.value.trim();
       const normalizedUrl = normalizeUrl(url);
-      const duplicate = await findDuplicateUrl(state.user.uid, normalizedUrl);
+      const duplicate = await findDuplicateUrl(normalizedUrl);
       if (duplicate && duplicate.id !== existing?.id) {
         throw new Error(`這個連結已收藏：${duplicate.title || "未命名收藏"}`);
       }
-      const hasLocation = document.querySelector("#has-location").checked;
-      let location = null;
-      if (hasLocation) {
-        const latitude = Number(document.querySelector("#place-latitude")?.value ?? placeState.latitude);
-        const longitude = Number(document.querySelector("#place-longitude")?.value ?? placeState.longitude);
-        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-          throw new Error("已勾選包含地點，請搜尋地點、地圖選點或填入有效經緯度。");
-        }
-        location = {
-          placeName: String(document.querySelector("#place-name")?.value || placeState.placeName || "自訂地點").trim(),
-          address: String(document.querySelector("#place-address")?.value || placeState.address || "").trim(),
-          latitude,
-          longitude,
-          geohash: toGeohash(latitude, longitude),
-          placeId: placeState.placeId || ""
-        };
+
+      syncPlaceStateFromInputs();
+      const hasAnyLocationInput = Boolean(placeState.placeName || placeState.address || placeState.latitude != null || placeState.longitude != null);
+      const hasCoordinates = Number.isFinite(Number(placeState.latitude)) && Number.isFinite(Number(placeState.longitude));
+      if (hasAnyLocationInput && !hasCoordinates) {
+        throw new Error("已填入地點資料時，請同時提供有效的緯度與經度；也可以按「搜尋地點與地圖選點」。");
       }
+
+      const location = hasCoordinates ? {
+        placeName: placeState.placeName || "自訂地點",
+        address: placeState.address || "",
+        latitude: Number(placeState.latitude),
+        longitude: Number(placeState.longitude),
+        geohash: toGeohash(Number(placeState.latitude), Number(placeState.longitude)),
+        placeId: placeState.placeId || ""
+      } : null;
+
       const input = {
         title: document.querySelector("#bookmark-title").value.trim(),
         url,
@@ -610,12 +663,18 @@ async function renderBookmarkForm(bookmarkId = "") {
         categoryId: document.querySelector("#bookmark-category").value,
         tags: parseTags(document.querySelector("#bookmark-tags").value),
         note: document.querySelector("#bookmark-note").value.trim(),
-        status: document.querySelector("#bookmark-status").value,
-        hasLocation,
+        hasLocation: Boolean(location),
         location
       };
-      if (existing) await updateBookmark(state.user.uid, existing.id, input);
-      else await createBookmark(state.user.uid, input);
+
+      const now = new Date();
+      if (existing) {
+        await updateBookmark(existing.id, input);
+        state.bookmarks = state.bookmarks.map((item) => item.id === existing.id ? { ...item, ...input, updatedAt: now } : item);
+      } else {
+        const id = await createBookmark(input);
+        state.bookmarks.unshift({ id, ...input, createdAt: now, updatedAt: now });
+      }
       showToast(existing ? "收藏已更新。" : "收藏已新增。", "success");
       go("home");
     } catch (error) {
@@ -627,36 +686,53 @@ async function renderBookmarkForm(bookmarkId = "") {
   });
 }
 
+function createMapPin(mapLibraries, { color, glyph, position, title, map, draggable = false, zIndex = undefined }) {
+  const pin = new mapLibraries.PinElement({
+    background: color,
+    borderColor: "#ffffff",
+    glyphColor: "#ffffff",
+    glyphText: glyph,
+    scale: 1.08
+  });
+  const marker = new mapLibraries.AdvancedMarkerElement({
+    map,
+    position,
+    title,
+    gmpDraggable: draggable,
+    gmpClickable: !draggable,
+    zIndex
+  });
+  marker.append(pin);
+  return marker;
+}
+
 async function renderMapPage() {
   clearPage();
-  renderLoading("收藏地圖", "map");
-  try {
-    await seedDefaultCategories(state.user.uid);
-    state.categories = await listCategories(state.user.uid);
-  } catch (error) {
-    renderShell({ title: "收藏地圖", active: "map", content: `<div class="alert alert-error">${escapeHtml(error?.message || "無法讀取分類。")}</div>` });
-    return;
-  }
+  await ensureCoreData();
 
   renderShell({
     title: "收藏地圖",
+    subtitle: "探索目前位置附近的收藏",
     active: "map",
     content: `
       <div class="map-toolbar">
-        <select id="map-radius">
+        <select id="map-radius" aria-label="搜尋半徑">
           <option value="10">10 km</option>
-          <option value="20" selected>20 km</option>
+          <option value="20">20 km</option>
           <option value="30">30 km</option>
           <option value="50">50 km</option>
         </select>
-        <button class="btn btn-secondary" id="search-map-center">搜尋此區域</button>
-        <button class="btn btn-secondary" id="return-current">目前位置</button>
+        <button class="btn btn-secondary" id="search-map-center">${iconSvg("search")} 搜尋此區域</button>
+        <button class="btn btn-soft" id="return-current">${iconSvg("compass")} 目前位置</button>
       </div>
       <div class="map-category-filter" id="map-category-filter">
         <button class="chip active" data-map-category="">全部</button>
-        ${state.categories.filter((category) => category.active).map((category) => `<button class="chip" data-map-category="${escapeHtml(category.id)}">${escapeHtml(category.icon)} ${escapeHtml(category.name)}</button>`).join("")}
+        ${state.categories.filter((category) => category.active).map((category) => `<button class="chip" data-map-category="${escapeHtml(category.id)}"><span class="category-chip-dot" style="--category-color:${escapeHtml(categoryColor(category))}"></span>${escapeHtml(category.name)}</button>`).join("")}
       </div>
-      <div id="main-map" class="main-map"></div>
+      <div class="main-map-wrap">
+        <div id="main-map" class="main-map"></div>
+        <div id="map-loading" class="map-loading-overlay"><div class="loading-card" style="min-height:auto"><div class="spinner"></div><p>正在載入地圖…</p></div></div>
+      </div>
       <section class="map-bottom-sheet">
         <div class="sheet-handle"></div>
         <div class="sheet-header"><strong id="map-result-title">準備搜尋…</strong><small id="map-center-label"></small></div>
@@ -670,7 +746,7 @@ async function renderMapPage() {
     map: null,
     infoWindow: null,
     center: null,
-    radius: 20,
+    radius: Number(CONFIG.defaultRadiusKm || 20),
     selectedCategories: new Set(),
     records: [],
     markers: [],
@@ -682,14 +758,23 @@ async function renderMapPage() {
   const listNode = document.querySelector("#nearby-list");
   const titleNode = document.querySelector("#map-result-title");
   const centerLabel = document.querySelector("#map-center-label");
+  const loadingNode = document.querySelector("#map-loading");
+  document.querySelector("#map-radius").value = String(local.radius);
 
   const clearRecordMarkers = () => {
-    local.markers.forEach((marker) => { marker.map = null; });
+    local.markers.forEach((marker) => {
+      marker.map = null;
+      marker.remove?.();
+    });
     local.markers = [];
   };
+
   registerCleanup(() => {
     clearRecordMarkers();
-    if (local.currentMarker) local.currentMarker.map = null;
+    if (local.currentMarker) {
+      local.currentMarker.map = null;
+      local.currentMarker.remove?.();
+    }
     local.map = null;
   });
 
@@ -703,25 +788,25 @@ async function renderMapPage() {
     const records = visibleRecords();
     const categories = categoryMap();
     const groups = new Map();
+
     records.forEach((bookmark) => {
       const key = `${Number(bookmark.location.latitude).toFixed(5)},${Number(bookmark.location.longitude).toFixed(5)}`;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(bookmark);
     });
+
     groups.forEach((items) => {
       const first = items[0];
-      const category = categories.get(first.categoryId);
-      const pin = document.createElement("div");
-      pin.className = "bookmark-map-pin";
-      const inner = document.createElement("span");
-      inner.textContent = items.length > 1 ? String(items.length) : (category?.icon || categoryEmoji(category?.name));
-      pin.append(inner);
-      const marker = new local.mapLibraries.AdvancedMarkerElement({
+      const category = categories.get(first.categoryId) || { id: "other", name: "其他" };
+      const glyph = items.length > 1 ? String(items.length) : String(category.name || "•").slice(0, 1);
+      const marker = createMapPin(local.mapLibraries, {
         map: local.map,
-        position: { lat: first.location.latitude, lng: first.location.longitude },
-        content: pin,
+        position: { lat: Number(first.location.latitude), lng: Number(first.location.longitude) },
+        color: categoryColor(category),
+        glyph,
         title: first.location.placeName || first.title
       });
+
       marker.addListener("click", () => {
         const wrapper = document.createElement("div");
         wrapper.className = "map-info";
@@ -757,15 +842,16 @@ async function renderMapPage() {
     titleNode.textContent = `${local.radius} 公里內 ${records.length} 筆收藏`;
     listNode.innerHTML = records.length
       ? records.slice(0, 150).map((bookmark) => {
-        const category = categories.get(bookmark.categoryId);
-        return `<button class="nearby-item" data-nearby-id="${escapeHtml(bookmark.id)}"><span>${escapeHtml(category?.icon || "●")}</span><span class="nearby-text"><strong>${escapeHtml(bookmark.title || "未命名收藏")}</strong><small>${escapeHtml(bookmark.location.placeName || "未命名地點")}</small></span><span>${bookmark.distanceKm.toFixed(1)} km</span></button>`;
+        const category = categories.get(bookmark.categoryId) || { id: "other", name: "其他" };
+        return `<button class="nearby-item" data-nearby-id="${escapeHtml(bookmark.id)}">${categoryIconHtml(category)}<span class="nearby-text"><strong>${escapeHtml(bookmark.title || "未命名收藏")}</strong><small>${escapeHtml(bookmark.location.placeName || "未命名地點")}</small></span><span class="distance-pill">${bookmark.distanceKm.toFixed(1)} km</span></button>`;
       }).join("")
-      : `<div class="empty-state"><p>目前範圍沒有符合分類的收藏。</p></div>`;
+      : `<div class="empty-state"><div class="empty-illustration">${iconSvg("map")}</div><p>目前範圍沒有符合分類的收藏。</p></div>`;
+
     document.querySelectorAll("[data-nearby-id]").forEach((button) => {
       button.addEventListener("click", () => {
         const bookmark = records.find((item) => item.id === button.dataset.nearbyId);
         if (!bookmark) return;
-        local.map.panTo({ lat: bookmark.location.latitude, lng: bookmark.location.longitude });
+        local.map.panTo({ lat: Number(bookmark.location.latitude), lng: Number(bookmark.location.longitude) });
         local.map.setZoom(16);
       });
     });
@@ -777,7 +863,7 @@ async function renderMapPage() {
     messageNode.innerHTML = "";
     centerLabel.textContent = `${center.latitude.toFixed(3)}, ${center.longitude.toFixed(3)}`;
     try {
-      local.records = await queryNearbyBookmarks(state.user.uid, center, local.radius);
+      local.records = await queryNearbyBookmarks(center, local.radius);
       drawRecords();
     } catch (error) {
       console.error(error);
@@ -789,40 +875,46 @@ async function renderMapPage() {
   try {
     local.mapLibraries = await loadMapLibraries();
     let position = null;
-    try { position = await getCurrentPosition(); } catch (error) {
+    try {
+      position = await getCurrentPosition();
+    } catch (error) {
       messageNode.innerHTML = `<div class="alert alert-info">${escapeHtml(error?.message || "無法取得目前位置。可拖曳地圖後按搜尋此區域。")}</div>`;
     }
+
     const initial = position
       ? { latitude: position.latitude, longitude: position.longitude }
       : { latitude: CONFIG.defaultCenter.lat, longitude: CONFIG.defaultCenter.lng };
+
     local.map = new local.mapLibraries.Map(document.querySelector("#main-map"), {
       center: { lat: initial.latitude, lng: initial.longitude },
       zoom: position ? 11 : 8,
       mapId: CONFIG.googleMapsMapId,
       mapTypeControl: false,
       streetViewControl: false,
-      fullscreenControl: false
+      fullscreenControl: false,
+      clickableIcons: false
     });
     local.infoWindow = new local.mapLibraries.InfoWindow();
+
     if (position) {
-      const current = document.createElement("div");
-      current.className = "current-location-pin";
-      local.currentMarker = new local.mapLibraries.AdvancedMarkerElement({
+      local.currentMarker = createMapPin(local.mapLibraries, {
         map: local.map,
         position: { lat: position.latitude, lng: position.longitude },
-        content: current,
+        color: "#3f8ee8",
+        glyph: "我",
         title: "目前位置",
         zIndex: 1000
       });
     }
+    loadingNode.classList.add("hidden");
     await search(initial);
   } catch (error) {
     console.error(error);
-    document.querySelector("#main-map").innerHTML = `<div class="empty-state"><div class="alert alert-error">${escapeHtml(error?.message || "Google Maps 載入失敗。")}</div></div>`;
+    loadingNode.classList.add("hidden");
+    document.querySelector("#main-map").innerHTML = `<div class="empty-state"><div class="empty-illustration">${iconSvg("map")}</div><div class="alert alert-error">${escapeHtml(error?.message || "Google Maps 載入失敗。")}</div><button class="btn btn-primary" id="retry-map">${iconSvg("refresh")} 重新載入</button></div>`;
+    document.querySelector("#retry-map")?.addEventListener("click", () => renderMapPage());
   }
 
-  document.querySelector("#map-radius").value = String(CONFIG.defaultRadiusKm || 20);
-  local.radius = Number(document.querySelector("#map-radius").value);
   document.querySelector("#map-radius").addEventListener("change", async (event) => {
     local.radius = Number(event.target.value);
     if (local.center) await search(local.center);
@@ -836,13 +928,11 @@ async function renderMapPage() {
     try {
       const position = await getCurrentPosition();
       const center = { latitude: position.latitude, longitude: position.longitude };
-      local.map.panTo({ lat: center.latitude, lng: center.longitude });
-      local.map.setZoom(11);
+      local.map?.panTo({ lat: center.latitude, lng: center.longitude });
+      local.map?.setZoom(11);
       if (local.currentMarker) local.currentMarker.position = { lat: center.latitude, lng: center.longitude };
-      else {
-        const current = document.createElement("div");
-        current.className = "current-location-pin";
-        local.currentMarker = new local.mapLibraries.AdvancedMarkerElement({ map: local.map, position: { lat: center.latitude, lng: center.longitude }, content: current, title: "目前位置", zIndex: 1000 });
+      else if (local.map && local.mapLibraries) {
+        local.currentMarker = createMapPin(local.mapLibraries, { map: local.map, position: { lat: center.latitude, lng: center.longitude }, color: "#3f8ee8", glyph: "我", title: "目前位置", zIndex: 1000 });
       }
       await search(center);
     } catch (error) {
@@ -878,11 +968,10 @@ function serializeBookmark(bookmark) {
     categoryId: bookmark.categoryId || "other",
     tags: bookmark.tags || [],
     note: bookmark.note || "",
-    status: bookmark.status || "active",
     hasLocation: Boolean(bookmark.hasLocation),
     location: bookmark.location || null,
-    createdAt: bookmark.createdAt?.toDate ? bookmark.createdAt.toDate().toISOString() : null,
-    updatedAt: bookmark.updatedAt?.toDate ? bookmark.updatedAt.toDate().toISOString() : null
+    createdAt: bookmark.createdAt?.toDate ? bookmark.createdAt.toDate().toISOString() : bookmark.createdAt instanceof Date ? bookmark.createdAt.toISOString() : null,
+    updatedAt: bookmark.updatedAt?.toDate ? bookmark.updatedAt.toDate().toISOString() : bookmark.updatedAt instanceof Date ? bookmark.updatedAt.toISOString() : null
   };
 }
 
@@ -897,8 +986,8 @@ async function showDeleteCategoryModal(category) {
   backdrop.innerHTML = `
     <div class="modal">
       <h3>刪除分類：${escapeHtml(category.name)}</h3>
-      <p>使用這個分類的收藏必須移至其他分類，並標記為待整理。</p>
-      <label class="field">移至<select id="move-category-target">${alternatives.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.icon)} ${escapeHtml(item.name)}</option>`).join("")}</select></label>
+      <p>原本使用這個分類的收藏，會直接移到你指定的新分類。</p>
+      <label class="field">移至<select id="move-category-target">${alternatives.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`).join("")}</select></label>
       <div class="form-actions"><button class="btn btn-secondary" id="cancel-delete-category">取消</button><button class="btn btn-danger" id="confirm-delete-category">刪除分類</button></div>
     </div>
   `;
@@ -910,8 +999,10 @@ async function showDeleteCategoryModal(category) {
     try {
       event.currentTarget.disabled = true;
       const targetId = backdrop.querySelector("#move-category-target").value;
-      const moved = await deleteCategoryAndMove(state.user.uid, category.id, targetId);
-      showToast(`分類已刪除，${moved} 筆收藏移至其他分類。`, "success");
+      const moved = await deleteCategoryAndMove(category.id, targetId);
+      state.bookmarks = state.bookmarks.map((item) => item.categoryId === category.id ? { ...item, categoryId: targetId } : item);
+      state.categories = state.categories.filter((item) => item.id !== category.id);
+      showToast(`分類已刪除，${moved} 筆收藏已移至新分類。`, "success");
       close();
       await renderSettingsPage();
     } catch (error) {
@@ -921,45 +1012,47 @@ async function showDeleteCategoryModal(category) {
   });
 }
 
+function iconOptions(selected = "other") {
+  return ICON_OPTIONS.map(([value, label]) => `<option value="${value}" ${value === selected ? "selected" : ""}>${label}</option>`).join("");
+}
+
 async function renderSettingsPage() {
   clearPage();
-  renderLoading("我的與設定", "settings");
-  try {
-    await refreshCoreData();
-  } catch (error) {
-    renderShell({ title: "我的與設定", active: "settings", content: `<div class="alert alert-error">${escapeHtml(error?.message || "無法讀取資料。")}</div>` });
-    return;
-  }
+  await ensureCoreData();
+
   const tagCounts = new Map();
   state.bookmarks.forEach((bookmark) => (bookmark.tags || []).forEach((tag) => tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)));
   const sortedTags = [...tagCounts.entries()].sort((a, b) => b[1] - a[1]);
 
   renderShell({
     title: "我的與設定",
+    subtitle: "共同管理分類與資料",
     active: "settings",
     content: `
       <div class="settings-grid">
         <div class="form-grid">
           <section class="card panel">
-            <div class="section-title"><h2>分類管理</h2><span class="small muted">${state.categories.length} 個分類</span></div>
+            <div class="section-title"><div class="section-title-copy"><span class="section-icon">${iconSvg("settings")}</span><h2>分類管理</h2></div><span class="small muted">${state.categories.length} 個分類</span></div>
             <form id="add-category-form" class="toolbar">
-              <input id="new-category-icon" style="width:72px" value="●" maxlength="4" aria-label="圖示" />
+              <select id="new-category-icon" style="width:120px">${iconOptions("sparkles")}</select>
               <input id="new-category-name" class="grow" required maxlength="20" placeholder="新增分類名稱" />
-              <button class="btn btn-primary" type="submit">新增</button>
+              <input id="new-category-color" class="category-color-input" type="color" value="#f47b64" aria-label="分類顏色" />
+              <button class="btn btn-primary" type="submit">${iconSvg("plus")} 新增</button>
             </form>
             <div class="category-list">
               ${state.categories.map((category) => `
                 <div class="category-row" data-category-row="${escapeHtml(category.id)}">
-                  <input class="category-icon-input" data-category-icon="${escapeHtml(category.id)}" value="${escapeHtml(category.icon)}" maxlength="4" />
+                  <select data-category-icon="${escapeHtml(category.id)}">${iconOptions(categoryIconKey(category))}</select>
                   <input data-category-name="${escapeHtml(category.id)}" value="${escapeHtml(category.name)}" maxlength="20" />
-                  <label class="check-row small"><input type="checkbox" data-category-active="${escapeHtml(category.id)}" ${category.active ? "checked" : ""} />啟用</label>
-                  <button class="btn btn-danger category-delete" data-delete-category="${escapeHtml(category.id)}" ${category.system ? "disabled title='系統保留分類不可刪除'" : ""}>刪除</button>
+                  <input class="category-color-input" data-category-color="${escapeHtml(category.id)}" type="color" value="${escapeHtml(categoryColor(category))}" />
+                  <label class="check-row small category-active"><input type="checkbox" data-category-active="${escapeHtml(category.id)}" ${category.active ? "checked" : ""} />啟用</label>
+                  <button class="btn btn-danger category-delete" data-delete-category="${escapeHtml(category.id)}" ${category.system ? "disabled title='系統保留分類不可刪除'" : ""}>${iconSvg("trash")} 刪除</button>
                 </div>
               `).join("")}
             </div>
           </section>
           <section class="card panel">
-            <div class="section-title"><h2>標籤統計</h2><span class="small muted">依使用次數排序</span></div>
+            <div class="section-title"><div class="section-title-copy"><span class="section-icon" style="background:#fff1df;color:#a66a18">${iconSvg("tag")}</span><h2>標籤統計</h2></div><span class="small muted">依使用次數排序</span></div>
             <div class="tag-stat-list">${sortedTags.length ? sortedTags.map(([tag,count]) => `<span class="tag-stat">#${escapeHtml(tag)}　${count}</span>`).join("") : `<span class="muted">尚未建立標籤。</span>`}</div>
           </section>
         </div>
@@ -969,23 +1062,23 @@ async function renderSettingsPage() {
               ${state.user.photoURL ? `<img class="avatar" src="${escapeHtml(state.user.photoURL)}" alt="" />` : `<div class="avatar"></div>`}
               <div><strong>${escapeHtml(state.user.displayName || "Google 使用者")}</strong><div class="small muted">${escapeHtml(state.user.email || "")}</div></div>
             </div>
-            <div class="form-actions" style="justify-content:flex-start"><button class="btn btn-secondary" id="logout-button">登出</button></div>
+            <div class="form-actions" style="justify-content:flex-start"><button class="btn btn-secondary" id="logout-button">${iconSvg("logout")} 登出</button></div>
           </section>
           <section class="card panel">
-            <h2 style="margin-top:0">資料備份</h2>
+            <div class="section-title"><div class="section-title-copy"><span class="section-icon" style="background:var(--mint-soft);color:var(--mint-deep)">${iconSvg("download")}</span><h2>資料備份</h2></div></div>
             <p class="muted small">匯出 JSON 可保存收藏內容；匯入會新增資料，不會覆蓋既有收藏。</p>
             <div class="form-grid">
-              <button class="btn btn-secondary" id="export-data">匯出 JSON 備份</button>
-              <label class="btn btn-secondary" style="cursor:pointer">匯入 JSON<input id="import-data" type="file" accept="application/json,.json" class="hidden" /></label>
+              <button class="btn btn-secondary" id="export-data">${iconSvg("download")} 匯出 JSON 備份</button>
+              <label class="btn btn-secondary" style="cursor:pointer">${iconSvg("upload")} 匯入 JSON<input id="import-data" type="file" accept="application/json,.json" class="hidden" /></label>
             </div>
           </section>
           <section class="card panel">
-            <h2 style="margin-top:0">使用統計</h2>
-            <div class="form-grid two">
-              <div><strong style="font-size:28px">${state.bookmarks.length}</strong><div class="small muted">收藏總數</div></div>
-              <div><strong style="font-size:28px">${state.bookmarks.filter((item) => item.hasLocation).length}</strong><div class="small muted">有地點</div></div>
-              <div><strong style="font-size:28px">${state.bookmarks.filter((item) => item.status === "pending").length}</strong><div class="small muted">待整理</div></div>
-              <div><strong style="font-size:28px">${tagCounts.size}</strong><div class="small muted">標籤數量</div></div>
+            <div class="section-title"><div class="section-title-copy"><span class="section-icon" style="background:#efeaff;color:var(--purple)">${iconSvg("sparkles")}</span><h2>使用統計</h2></div></div>
+            <div class="stat-grid">
+              <div class="stat-card"><strong>${state.bookmarks.length}</strong><small>收藏總數</small></div>
+              <div class="stat-card"><strong>${state.bookmarks.filter((item) => item.hasLocation).length}</strong><small>有地點</small></div>
+              <div class="stat-card"><strong>${state.categories.filter((item) => item.active).length}</strong><small>啟用分類</small></div>
+              <div class="stat-card"><strong>${tagCounts.size}</strong><small>標籤數量</small></div>
             </div>
           </section>
         </div>
@@ -997,10 +1090,12 @@ async function renderSettingsPage() {
   document.querySelector("#add-category-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     const name = document.querySelector("#new-category-name").value.trim();
-    const icon = document.querySelector("#new-category-icon").value.trim() || "●";
+    const icon = document.querySelector("#new-category-icon").value;
+    const color = document.querySelector("#new-category-color").value;
     if (!name) return;
     try {
-      await addCategory(state.user.uid, { name, icon, sortOrder: state.categories.length });
+      const id = await addCategory({ name, icon, color, sortOrder: state.categories.length });
+      state.categories.push({ id, name, icon, color, sortOrder: state.categories.length, active: true, system: false });
       showToast("分類已新增。", "success");
       await renderSettingsPage();
     } catch (error) {
@@ -1010,21 +1105,22 @@ async function renderSettingsPage() {
 
   const saveCategory = async (categoryId) => {
     const name = document.querySelector(`[data-category-name="${CSS.escape(categoryId)}"]`).value.trim();
-    const icon = document.querySelector(`[data-category-icon="${CSS.escape(categoryId)}"]`).value.trim() || "●";
+    const icon = document.querySelector(`[data-category-icon="${CSS.escape(categoryId)}"]`).value;
+    const color = document.querySelector(`[data-category-color="${CSS.escape(categoryId)}"]`).value;
     const active = document.querySelector(`[data-category-active="${CSS.escape(categoryId)}"]`).checked;
     if (!name) return showToast("分類名稱不可空白。", "error");
     try {
-      await updateCategory(state.user.uid, categoryId, { name, icon, active });
+      await updateCategory(categoryId, { name, icon, color, active });
+      const category = state.categories.find((item) => item.id === categoryId);
+      if (category) Object.assign(category, { name, icon, color, active });
       showToast("分類已更新。", "success");
     } catch (error) {
       showToast(error?.message || "分類更新失敗。", "error");
     }
   };
-  document.querySelectorAll("[data-category-name], [data-category-icon]").forEach((input) => {
-    input.addEventListener("change", () => saveCategory(input.dataset.categoryName || input.dataset.categoryIcon));
-  });
-  document.querySelectorAll("[data-category-active]").forEach((input) => {
-    input.addEventListener("change", () => saveCategory(input.dataset.categoryActive));
+
+  document.querySelectorAll("[data-category-name], [data-category-icon], [data-category-color], [data-category-active]").forEach((input) => {
+    input.addEventListener("change", () => saveCategory(input.dataset.categoryName || input.dataset.categoryIcon || input.dataset.categoryColor || input.dataset.categoryActive));
   });
   document.querySelectorAll("[data-delete-category]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -1036,9 +1132,9 @@ async function renderSettingsPage() {
   document.querySelector("#export-data").addEventListener("click", () => {
     const date = new Date().toISOString().slice(0, 10);
     downloadJson(`short-video-bookmarks-${date}.json`, {
-      version: 1,
+      version: 2,
       exportedAt: new Date().toISOString(),
-      categories: state.categories.map(({ id, name, icon, sortOrder, active }) => ({ id, name, icon, sortOrder, active })),
+      categories: state.categories.map(({ id, name, icon, color, sortOrder, active }) => ({ id, name, icon, color, sortOrder, active })),
       bookmarks: state.bookmarks.map(serializeBookmark)
     });
   });
@@ -1048,7 +1144,8 @@ async function renderSettingsPage() {
     try {
       const data = JSON.parse(await file.text());
       if (!Array.isArray(data.bookmarks)) throw new Error("備份檔格式不正確。");
-      const count = await importBookmarks(state.user.uid, data.bookmarks, state.categories);
+      const count = await importBookmarks(data.bookmarks, state.categories);
+      await ensureCoreData(true);
       showToast(`已匯入 ${count} 筆收藏。`, "success");
       await renderSettingsPage();
     } catch (error) {
@@ -1064,8 +1161,8 @@ async function renderRoute() {
   clearPage();
   const { path, id } = routeName();
   try {
-    if (path === "home") return await renderCollectionPage({ pendingOnly: false });
-    if (path === "pending") return await renderCollectionPage({ pendingOnly: true });
+    await ensureCoreData();
+    if (path === "home") return await renderCollectionPage();
     if (path === "map") return await renderMapPage();
     if (path === "add") return await renderBookmarkForm();
     if (path === "edit") return await renderBookmarkForm(id);
@@ -1086,7 +1183,6 @@ window.addEventListener("hashchange", renderRoute);
 
 observeAuth(async (user) => {
   state.authReady = true;
-
   const allowedEmails = (CONFIG.allowedEmails || [])
     .map((email) => String(email || "").trim().toLowerCase())
     .filter((email) => email && !email.startsWith("請填入_"));
@@ -1102,7 +1198,8 @@ observeAuth(async (user) => {
   state.user = user;
   if (user) {
     try {
-      await Promise.all([upsertUserProfile(user), seedDefaultCategories(user.uid)]);
+      renderLoading("正在開啟收藏中心", "home");
+      await Promise.all([upsertUserProfile(user), ensureCoreData()]);
       if (!location.hash) location.hash = "#/home";
       await renderRoute();
     } catch (error) {
@@ -1110,6 +1207,10 @@ observeAuth(async (user) => {
       renderShell({ title: "初始化失敗", active: "home", content: `<div class="alert alert-error">${escapeHtml(error?.message || "請檢查 Firestore 規則。")}</div>` });
     }
   } else {
+    state.coreLoaded = false;
+    state.corePromise = null;
+    state.categories = [];
+    state.bookmarks = [];
     renderLogin();
   }
 });

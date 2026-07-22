@@ -118,7 +118,7 @@ function renderLogin(errorMessage = "") {
         <button id="google-login" class="btn google-btn">
           <span style="font-size:20px">G</span> 使用 Google 帳號登入
         </button>
-        <p class="small muted">每個帳號只能讀寫自己的收藏資料。</p>
+        <p class="small muted">僅限指定的兩個 Google 帳號登入，兩人共同編輯同一份收藏資料。</p>
       </section>
     </div>
   `;
@@ -1085,8 +1085,21 @@ async function renderRoute() {
 window.addEventListener("hashchange", renderRoute);
 
 observeAuth(async (user) => {
-  state.user = user;
   state.authReady = true;
+
+  const allowedEmails = (CONFIG.allowedEmails || [])
+    .map((email) => String(email || "").trim().toLowerCase())
+    .filter((email) => email && !email.startsWith("請填入_"));
+
+  if (user && !allowedEmails.includes(String(user.email || "").toLowerCase())) {
+    const rejectedEmail = user.email || "此帳號";
+    await logout();
+    state.user = null;
+    renderLogin(`${rejectedEmail} 未被授權使用此 App。`);
+    return;
+  }
+
+  state.user = user;
   if (user) {
     try {
       await Promise.all([upsertUserProfile(user), seedDefaultCategories(user.uid)]);

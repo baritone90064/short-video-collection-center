@@ -265,9 +265,10 @@
     .meta-item svg { width: 13px; height: 13px; flex: 0 0 auto; }
     .category-pill { display: inline-flex; align-items: center; gap: 5px; color: var(--category-color); font-weight: 800; }
     .tag-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-size: 11px; }
-    .bookmark-actions { display: flex; gap: 6px; margin-top: 2px; }
-    .bookmark-actions .btn { min-height: 32px; padding: 5px 9px; font-size: 11px; }
-    .bookmark-actions .btn-icon { width: 32px; min-width: 32px; padding: 0; }
+    .bookmark-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+    .bookmark-actions .btn { min-height: 38px; padding: 0; font-size: 11px; }
+    .bookmark-actions .btn-icon { width: 38px; min-width: 38px; height: 38px; padding: 0; }
+    .bookmark-actions .btn-icon svg { width: 20px; height: 20px; }
 
     .empty { padding: 34px 18px; text-align: center; color: var(--muted); }
     .empty svg { width: 46px; height: 46px; color: var(--mint); margin: 0 auto 10px; }
@@ -286,47 +287,138 @@
     .place-map { min-height: 310px; background: #edf4f0; }
     .coordinate-note { margin: 9px 0 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
 
-    .map-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
-    .map-toolbar select { width: auto; min-width: 105px; }
-    .map-shell { position: relative; overflow: hidden; border: 1px solid var(--line); border-radius: 20px; background: #eaf3ee; box-shadow: var(--shadow); }
-    .map-canvas { min-height: min(62vh, 600px); z-index: 1; }
-    .map-canvas .leaflet-control-container { font-size: 12px; }
-    .map-status { position: absolute; z-index: 5; left: 12px; right: 12px; top: 12px; display: none; padding: 10px 12px; border-radius: 14px; background: rgba(255,255,255,.94); box-shadow: var(--shadow); font-size: 13px; }
-    .map-status.show { display: block; }
-    .map-results {
-      margin-top: 12px;
-      padding-bottom: 6px;
-      display: grid;
-      gap: 9px;
+    body.map-view { overflow: hidden; }
+    body.map-view .app-shell {
+      height: 100dvh;
+      min-height: 100dvh;
+      padding-bottom: calc(58px + env(safe-area-inset-bottom));
+      overflow: hidden;
     }
-    .map-results-head {
-      position: sticky;
-      bottom: calc(60px + env(safe-area-inset-bottom));
-      z-index: 8;
-      display: flex;
+    body.map-view .page {
+      width: 100%;
+      height: calc(100dvh - 64px - 58px - env(safe-area-inset-bottom));
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    .map-workspace { position: relative; width: 100%; height: 100%; overflow: hidden; background: #eaf3ee; }
+    .map-toolbar {
+      position: absolute;
+      z-index: 16;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(104px, .85fr) auto;
+      gap: 7px;
       align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      padding: 9px 11px;
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      background: rgba(255,255,255,.96);
+      pointer-events: none;
+    }
+    .map-toolbar > * { pointer-events: auto; }
+    .map-toolbar .btn, .map-toolbar select {
+      min-height: 44px;
+      box-shadow: 0 7px 20px rgba(57,48,42,.14);
+      background-color: rgba(255,255,255,.97);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
-      box-shadow: 0 7px 18px rgba(91,59,43,.08);
     }
-    .map-results-list { display: grid; gap: 8px; }
+    .map-toolbar .btn { white-space: nowrap; }
+    .map-toolbar select { min-width: 0; padding-right: 28px; }
+    .map-toolbar .btn-soft { color: var(--mint-deep); background: rgba(221,246,236,.97); }
+    .map-shell { position: absolute; inset: 0; overflow: hidden; border: 0; border-radius: 0; background: #eaf3ee; box-shadow: none; }
+    .map-canvas { width: 100%; height: 100%; min-height: 0; z-index: 1; }
+    .map-canvas .leaflet-control-container { font-size: 12px; }
+    .map-status {
+      position: absolute;
+      z-index: 18;
+      left: 12px;
+      right: 12px;
+      top: 64px;
+      display: none;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.95);
+      box-shadow: var(--shadow);
+      font-size: 13px;
+    }
+    .map-status.show { display: block; }
+    .map-provider-overlay {
+      position: absolute;
+      z-index: 9;
+      left: 8px;
+      bottom: 34px;
+      max-width: calc(100% - 16px);
+      margin: 0;
+      padding: 3px 7px;
+      border-radius: 8px;
+      color: #5d5963;
+      background: rgba(255,255,255,.82);
+      font-size: 10px;
+      pointer-events: none;
+    }
+    .map-sheet {
+      position: absolute;
+      z-index: 28;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 30px;
+      min-height: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid rgba(236,226,217,.96);
+      border-bottom: 0;
+      border-radius: 24px 24px 0 0;
+      background: rgba(255,255,255,.985);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      box-shadow: 0 -12px 32px rgba(70,50,39,.18);
+      transition: height .23s ease;
+      will-change: height;
+    }
+    .map-sheet.dragging { transition: none; user-select: none; -webkit-user-select: none; }
+    .map-sheet-handle {
+      width: 100%;
+      min-height: 48px;
+      padding: 7px 14px 8px;
+      border: 0;
+      display: grid;
+      grid-template-rows: 5px 1fr;
+      gap: 5px;
+      color: var(--text);
+      background: transparent;
+      text-align: left;
+      touch-action: none;
+      cursor: ns-resize;
+    }
+    .map-sheet-grabber { width: 42px; height: 5px; margin: 0 auto; border-radius: 999px; background: #d8cec5; }
+    .map-sheet-summary { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; transition: opacity .12s ease; }
+    .map-sheet-summary strong { color: var(--text-strong); font-size: 14px; }
+    .map-sheet-summary small { color: var(--muted); font-size: 12px; }
+    .map-sheet.collapsed .map-sheet-summary { opacity: 0; }
+    .map-results {
+      flex: 1;
+      min-height: 0;
+      margin: 0;
+      padding: 2px 12px 14px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+    .map-results-list { display: grid; gap: 8px; align-content: start; }
     .map-result-row {
       display: grid;
       grid-template-columns: 42px minmax(0,1fr) auto;
       gap: 9px;
       align-items: center;
-      padding: 10px;
+      min-height: 64px;
+      padding: 9px;
       border: 1px solid var(--line);
       border-radius: 15px;
       background: var(--surface);
       box-shadow: 0 5px 16px rgba(91,59,43,.07);
-      scroll-margin-bottom: calc(76px + env(safe-area-inset-bottom));
+      scroll-margin: 8px;
     }
     .map-result-row.selected {
       border-color: var(--result-color, var(--coral));
@@ -345,13 +437,10 @@
     .map-result-copy { min-width: 0; }
     .map-result-copy strong { display: block; color: var(--text-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .map-result-copy small { display: block; margin-top: 2px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .map-result-actions { display: flex; gap: 5px; }
-    .map-result-actions .btn { min-height: 34px; padding: 6px 9px; font-size: 11px; }
-    .map-marker-pin {
-      width: 31px;
-      height: 41px;
-      filter: drop-shadow(0 3px 3px rgba(36,31,28,.25));
-    }
+    .map-result-actions { display: flex; gap: 6px; }
+    .map-result-actions .btn { width: 42px; min-width: 42px; height: 42px; min-height: 42px; padding: 0; }
+    .map-result-actions .btn svg { width: 22px; height: 22px; }
+    .map-marker-pin { width: 31px; height: 41px; filter: drop-shadow(0 3px 3px rgba(36,31,28,.25)); }
 
     .category-add { display: grid; grid-template-columns: minmax(0,1fr) 58px auto; gap: 9px; align-items: end; margin-bottom: 15px; }
     .icon-picker-wrap { grid-column: 1 / -1; }
@@ -451,8 +540,10 @@
       .icon-picker { grid-template-columns: repeat(5, minmax(0,1fr)); }
       .category-row { grid-template-columns: 38px minmax(0,1fr) auto auto; padding: 9px; }
       .category-icon { width: 38px; height: 38px; }
-      .map-canvas { min-height: 58vh; }
       .place-map { min-height: 280px; }
+      .map-toolbar { grid-template-columns: minmax(0,1fr) 104px 46px; gap: 6px; }
+      .map-toolbar .btn { padding: 8px 10px; }
+      .map-location-label { display: none; }
       .form-actions .btn { flex: 1 1 120px; }
     }
   </style>
@@ -928,10 +1019,10 @@
           </div>
           ${bookmark.tags?.length ? `<div class="tag-line">${bookmark.tags.map((tag) => `#${escapeHtml(tag)}`).join("　")}</div>` : ""}
           <div class="bookmark-actions">
-            <a class="btn btn-small btn-soft" href="${escapeHtml(bookmark.url)}" target="_blank" rel="noreferrer">${icon("play")}開啟</a>
-            ${hasLocation ? `<a class="btn btn-small btn-primary" href="${navigationUrl}" target="_blank" rel="noreferrer">${icon("navigation")}導航</a><button class="btn btn-small btn-secondary" data-show-map="${bookmark.id}">${icon("map")}地圖</button>` : ""}
-            <button class="btn btn-small btn-secondary" data-edit-bookmark="${bookmark.id}">${icon("edit")}編輯</button>
-            <button class="btn btn-small btn-icon btn-danger" data-delete-bookmark="${bookmark.id}" aria-label="刪除">${icon("trash")}</button>
+            <a class="btn btn-small btn-icon btn-soft" href="${escapeHtml(bookmark.url)}" target="_blank" rel="noreferrer" aria-label="開啟連結" title="開啟連結">${icon("play")}</a>
+            ${hasLocation ? `<a class="btn btn-small btn-icon btn-primary" href="${navigationUrl}" target="_blank" rel="noreferrer" aria-label="導航" title="導航">${icon("navigation")}</a><button class="btn btn-small btn-icon btn-secondary" data-show-map="${bookmark.id}" aria-label="在地圖顯示" title="在地圖顯示">${icon("map")}</button>` : ""}
+            <button class="btn btn-small btn-icon btn-secondary" data-edit-bookmark="${bookmark.id}" aria-label="編輯" title="編輯">${icon("edit")}</button>
+            <button class="btn btn-small btn-icon btn-danger" data-delete-bookmark="${bookmark.id}" aria-label="刪除" title="刪除">${icon("trash")}</button>
           </div>
         </div>
       </article>`;
@@ -1370,33 +1461,126 @@
     async function renderMap(focusId = "") {
       cleanups();
       await loadCoreData();
+      document.body.classList.add("map-view");
+      state.cleanup.push(() => document.body.classList.remove("map-view"));
+
       shell({
         title: "收藏地圖",
-        subtitle: "查看目前位置附近的收藏",
+        subtitle: "移動或縮放地圖後搜尋目前區域",
         active: "map",
-        content: `<div class="map-toolbar"><select id="map-radius"><option value="10">10 km</option><option value="20" selected>20 km</option><option value="30">30 km</option><option value="50">50 km</option></select><button class="btn btn-secondary" id="search-area">${icon("search")}搜尋此區域</button><button class="btn btn-soft" id="current-location">${icon("compass")}目前位置</button></div>
-          <div class="chips" id="map-category-chips"><button class="chip active" data-map-category="">全部</button>${state.categories.map((category) => `<button class="chip" style="--chip-color:${escapeHtml(categoryColor(category))}" data-map-category="${category.id}">${escapeHtml(category.name)}</button>`).join("")}</div>
+        content: `<div class="map-workspace">
+          <div class="map-toolbar">
+            <button class="btn btn-secondary" id="search-area">${icon("search")}<span>搜尋此區域</span></button>
+            <select id="map-category" aria-label="分類"><option value="">全部分類</option>${state.categories.map((category) => `<option value="${escapeHtml(category.id)}">${escapeHtml(category.name)}</option>`).join("")}</select>
+            <button class="btn btn-soft" id="current-location" aria-label="目前位置" title="目前位置">${icon("compass")}<span class="map-location-label">目前位置</span></button>
+          </div>
           <div class="map-shell"><div id="map-status" class="map-status"></div><div id="main-map" class="map-canvas"></div></div>
-          <p id="map-provider-note" class="map-provider-note"></p>
-          <section id="map-results" class="map-results" aria-live="polite"></section>`
+          <p id="map-provider-note" class="map-provider-note map-provider-overlay"></p>
+          <section id="map-sheet" class="map-sheet collapsed" aria-label="收藏清單">
+            <button type="button" id="map-sheet-handle" class="map-sheet-handle" aria-label="拖曳調整收藏清單高度">
+              <span class="map-sheet-grabber"></span>
+              <span class="map-sheet-summary"><strong id="map-sheet-title">收藏清單</strong><small id="map-sheet-count">0 筆</small></span>
+            </button>
+            <div id="map-results" class="map-results" aria-live="polite"></div>
+          </section>
+        </div>`
       });
 
+      const workspace = document.querySelector(".map-workspace");
       const status = document.querySelector("#map-status");
       const resultsNode = document.querySelector("#map-results");
       const providerNote = document.querySelector("#map-provider-note");
+      const sheet = document.querySelector("#map-sheet");
+      const sheetHandle = document.querySelector("#map-sheet-handle");
+      const sheetTitle = document.querySelector("#map-sheet-title");
+      const sheetCount = document.querySelector("#map-sheet-count");
+      const categorySelect = document.querySelector("#map-category");
       const selected = {
         categoryId: "",
         center: { ...CONFIG.defaultCenter },
         records: [],
-        selectedBookmarkId: focusId || "",
-        mode: "radius"
+        selectedBookmarkId: focusId || ""
       };
       let controller = null;
+      let sheetHeight = 30;
+      let lastExpandedHeight = 180;
 
       const showStatus = (message = "") => {
         status.textContent = message;
         status.classList.toggle("show", Boolean(message));
       };
+
+      const sheetLimits = () => {
+        const workspaceHeight = Math.max(220, workspace?.clientHeight || window.innerHeight * .7);
+        return { min: 30, max: Math.max(150, workspaceHeight - 62) };
+      };
+
+      const setSheetHeight = (height, { animate = true } = {}) => {
+        const { min, max } = sheetLimits();
+        const next = Math.max(min, Math.min(max, Number(height) || min));
+        sheet.style.transition = animate ? "height .23s ease" : "none";
+        sheet.style.height = `${next}px`;
+        sheetHeight = next;
+        const collapsed = next <= min + 4;
+        sheet.classList.toggle("collapsed", collapsed);
+        if (!collapsed) lastExpandedHeight = next;
+      };
+
+      const suggestedSheetHeight = (count, { single = false } = {}) => {
+        const { min, max } = sheetLimits();
+        if (!count) return Math.min(max, 112);
+        const visibleRows = single ? 1 : Math.min(count, 4);
+        return Math.max(min, Math.min(max, 52 + 12 + visibleRows * 72 + Math.max(0, visibleRows - 1) * 8));
+      };
+
+      const openSheetForRecords = (count, { single = false } = {}) => {
+        setSheetHeight(suggestedSheetHeight(count, { single }));
+      };
+
+      const collapseSheet = () => setSheetHeight(sheetLimits().min);
+
+      let dragState = null;
+      const finishSheetDrag = (event) => {
+        if (!dragState) return;
+        try { sheetHandle.releasePointerCapture(event.pointerId); } catch {}
+        const moved = dragState.moved;
+        dragState = null;
+        sheet.classList.remove("dragging");
+        const { min, max } = sheetLimits();
+        if (!moved) {
+          if (sheetHeight <= min + 4) setSheetHeight(lastExpandedHeight || suggestedSheetHeight(filteredRecords().length));
+          else collapseSheet();
+          return;
+        }
+        if (sheetHeight < min + 30) collapseSheet();
+        else if (sheetHeight > max - 24) setSheetHeight(max);
+        else setSheetHeight(sheetHeight);
+      };
+
+      sheetHandle.addEventListener("pointerdown", (event) => {
+        if (event.pointerType === "mouse" && event.button !== 0) return;
+        dragState = { startY: event.clientY, startHeight: sheet.getBoundingClientRect().height, moved: false };
+        sheetHandle.setPointerCapture(event.pointerId);
+        sheet.classList.add("dragging");
+      });
+      sheetHandle.addEventListener("pointermove", (event) => {
+        if (!dragState) return;
+        const delta = dragState.startY - event.clientY;
+        if (Math.abs(delta) > 3) dragState.moved = true;
+        setSheetHeight(dragState.startHeight + delta, { animate: false });
+      });
+      sheetHandle.addEventListener("pointerup", finishSheetDrag);
+      sheetHandle.addEventListener("pointercancel", finishSheetDrag);
+      sheetHandle.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        const { min } = sheetLimits();
+        if (sheetHeight <= min + 4) setSheetHeight(lastExpandedHeight || suggestedSheetHeight(filteredRecords().length));
+        else collapseSheet();
+      });
+      const handleMapResize = () => setSheetHeight(sheetHeight, { animate: false });
+      window.addEventListener("resize", handleMapResize);
+      state.cleanup.push(() => window.removeEventListener("resize", handleMapResize));
 
       const createGoogleController = async (node, start, currentPosition = null) => {
         await loadGoogleMaps();
@@ -1443,9 +1627,15 @@
           panTo(position) { map.panTo({ lat: position.latitude, lng: position.longitude }); },
           setZoom(zoom) { map.setZoom(zoom); },
           setCurrentPosition,
-          clearBookmarks() {
-            bookmarkMarkers.splice(0).forEach((marker) => marker.setMap(null));
+          waitForIdle() {
+            return new Promise((resolve) => {
+              let finished = false;
+              const finish = () => { if (!finished) { finished = true; resolve(); } };
+              google.maps.event.addListenerOnce(map, "idle", finish);
+              setTimeout(finish, 700);
+            });
           },
+          clearBookmarks() { bookmarkMarkers.splice(0).forEach((marker) => marker.setMap(null)); },
           addBookmark(bookmark, color, onClick) {
             const marker = new google.maps.Marker({
               map,
@@ -1481,9 +1671,7 @@
               fillColor: "#2f80ed",
               fillOpacity: 1
             }).addTo(map);
-          } else {
-            currentMarker.setLatLng([position.latitude, position.longitude]);
-          }
+          } else currentMarker.setLatLng([position.latitude, position.longitude]);
         };
         if (currentPosition) setCurrentPosition(currentPosition);
         const bookmarkMarkers = [];
@@ -1494,15 +1682,12 @@
             const center = map.getCenter();
             return { latitude: center.lat, longitude: center.lng };
           },
-          contains(position) {
-            return map.getBounds().contains([Number(position.latitude), Number(position.longitude)]);
-          },
+          contains(position) { return map.getBounds().contains([Number(position.latitude), Number(position.longitude)]); },
           panTo(position) { map.panTo([position.latitude, position.longitude]); },
           setZoom(zoom) { map.setZoom(zoom); },
           setCurrentPosition,
-          clearBookmarks() {
-            bookmarkMarkers.splice(0).forEach((marker) => map.removeLayer(marker));
-          },
+          waitForIdle() { return new Promise((resolve) => { map.invalidateSize(); setTimeout(resolve, 320); }); },
+          clearBookmarks() { bookmarkMarkers.splice(0).forEach((marker) => map.removeLayer(marker)); },
           addBookmark(bookmark, color, onClick) {
             const marker = L.marker(
               [Number(bookmark.location.latitude), Number(bookmark.location.longitude)],
@@ -1519,19 +1704,20 @@
         ? selected.records.filter((item) => item.categoryId === selected.categoryId)
         : selected.records;
 
-      const renderResults = ({ scrollToSelected = false } = {}) => {
+      const renderResults = ({ scrollToSelected = false, autoOpen = false, single = false } = {}) => {
         const categories = categoryMap();
         const records = filteredRecords();
-        resultsNode.innerHTML = `<div class="map-results-head"><strong>${selected.mode === "bounds" ? "目前地圖範圍" : `${document.querySelector("#map-radius").value} 公里內`}</strong><span class="small muted">${records.length} 筆收藏</span></div>
-          <div class="map-results-list">${records.length ? records.map((bookmark) => {
-            const category = categories.get(bookmark.categoryId) || { color: "#9a96a1", icon: "other" };
-            const navigationUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${bookmark.location.latitude},${bookmark.location.longitude}`)}`;
-            return `<article id="map-result-${escapeHtml(bookmark.id)}" class="map-result-row ${bookmark.id === selected.selectedBookmarkId ? "selected" : ""}" style="--result-color:${escapeHtml(categoryColor(category))}" data-map-result="${escapeHtml(bookmark.id)}">
-              <span class="map-result-icon">${icon(categoryIconName(category))}</span>
-              <div class="map-result-copy"><strong>${escapeHtml(bookmark.title || "未命名收藏")}</strong><small>${escapeHtml(bookmark.location?.placeName || "自訂地點")}${bookmark.distanceKm != null ? `・${bookmark.distanceKm.toFixed(bookmark.distanceKm < 10 ? 1 : 0)} km` : ""}</small></div>
-              <div class="map-result-actions"><a class="btn btn-small btn-soft" href="${escapeHtml(bookmark.url)}" target="_blank" rel="noreferrer" aria-label="開啟影片">${icon("play")}</a><a class="btn btn-small btn-primary" href="${navigationUrl}" target="_blank" rel="noreferrer" aria-label="導航">${icon("navigation")}</a></div>
-            </article>`;
-          }).join("") : `<div class="card empty">${icon("map")}<p>這個範圍內沒有符合分類的收藏。</p></div>`}</div>`;
+        sheetTitle.textContent = selected.selectedBookmarkId ? "已選取收藏" : "收藏清單";
+        sheetCount.textContent = `${records.length} 筆`;
+        resultsNode.innerHTML = `<div class="map-results-list">${records.length ? records.map((bookmark) => {
+          const category = categories.get(bookmark.categoryId) || { color: "#9a96a1", icon: "other" };
+          const navigationUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${bookmark.location.latitude},${bookmark.location.longitude}`)}`;
+          return `<article id="map-result-${escapeHtml(bookmark.id)}" class="map-result-row ${bookmark.id === selected.selectedBookmarkId ? "selected" : ""}" style="--result-color:${escapeHtml(categoryColor(category))}" data-map-result="${escapeHtml(bookmark.id)}">
+            <span class="map-result-icon">${icon(categoryIconName(category))}</span>
+            <div class="map-result-copy"><strong>${escapeHtml(bookmark.title || "未命名收藏")}</strong><small>${escapeHtml(bookmark.location?.placeName || "自訂地點")}${bookmark.distanceKm != null ? `・${bookmark.distanceKm.toFixed(bookmark.distanceKm < 10 ? 1 : 0)} km` : ""}</small></div>
+            <div class="map-result-actions"><a class="btn btn-icon btn-soft" href="${escapeHtml(bookmark.url)}" target="_blank" rel="noreferrer" aria-label="開啟連結" title="開啟連結">${icon("play")}</a><a class="btn btn-icon btn-primary" href="${navigationUrl}" target="_blank" rel="noreferrer" aria-label="導航" title="導航">${icon("navigation")}</a></div>
+          </article>`;
+        }).join("") : `<div class="empty">${icon("map")}<p>目前地圖範圍內沒有符合分類的收藏。</p></div>`}</div>`;
 
         resultsNode.querySelectorAll("[data-map-result]").forEach((row) => row.addEventListener("click", (event) => {
           if (event.target.closest("a,button")) return;
@@ -1543,29 +1729,28 @@
           renderResults();
         }));
 
+        if (autoOpen) openSheetForRecords(records.length, { single });
         if (scrollToSelected && selected.selectedBookmarkId) {
           requestAnimationFrame(() => {
-            document.querySelector(`#map-result-${CSS.escape(selected.selectedBookmarkId)}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+            document.querySelector(`#map-result-${CSS.escape(selected.selectedBookmarkId)}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
           });
         }
       };
 
-      const renderMarkers = ({ scrollToSelected = false } = {}) => {
+      const renderMarkers = ({ scrollToSelected = false, autoOpen = false, single = false } = {}) => {
         if (!controller) return;
         controller.clearBookmarks();
         const categories = categoryMap();
         const records = filteredRecords();
-
         records.forEach((bookmark) => {
           const category = categories.get(bookmark.categoryId) || { color: "#9a96a1" };
           controller.addBookmark(bookmark, categoryColor(category), () => {
             selected.selectedBookmarkId = bookmark.id;
-            renderResults({ scrollToSelected: true });
+            renderResults({ scrollToSelected: true, autoOpen: true, single: true });
           });
         });
-
-        renderResults({ scrollToSelected });
-        if (!records.length) showStatus("這個範圍內沒有符合分類的收藏。");
+        renderResults({ scrollToSelected, autoOpen, single });
+        if (!records.length) showStatus("這個地圖範圍內沒有符合分類的收藏。");
         else showStatus("");
       };
 
@@ -1577,24 +1762,10 @@
         )
       })).sort((a, b) => a.distanceKm - b.distanceKm);
 
-      const searchCenter = async (center, { scrollToSelected = false } = {}) => {
-        try {
-          showStatus("正在搜尋附近收藏…");
-          selected.center = center;
-          selected.mode = "radius";
-          selected.records = await queryNearby(center, Number(document.querySelector("#map-radius").value));
-          renderMarkers({ scrollToSelected });
-        } catch (error) {
-          console.error(error);
-          showStatus(error?.message || "搜尋失敗。");
-        }
-      };
-
-      const searchVisibleArea = () => {
+      const searchVisibleArea = ({ autoOpen = true, preserveSelection = false, single = false, scrollToSelected = false } = {}) => {
         if (!controller) return;
         const center = controller.getCenter();
         selected.center = center;
-        selected.mode = "bounds";
         const records = state.bookmarks.filter((bookmark) =>
           bookmark.hasLocation &&
           bookmark.location?.latitude != null &&
@@ -1602,8 +1773,8 @@
           controller.contains(bookmark.location)
         );
         selected.records = withDistances(records, center);
-        selected.selectedBookmarkId = "";
-        renderMarkers();
+        if (!preserveSelection) selected.selectedBookmarkId = "";
+        renderMarkers({ autoOpen, single, scrollToSelected });
       };
 
       try {
@@ -1627,47 +1798,46 @@
           console.error("Google Maps failed:", googleError);
           node.innerHTML = "";
           controller = await createLeafletController(node, start, currentPosition);
-          providerNote.textContent = `Google Maps 尚未通過驗證，已自動切換備援地圖。${googleError?.message ? ` ${googleError.message}` : ""}`;
+          providerNote.textContent = `Google Maps 尚未通過驗證，已切換備援地圖。${googleError?.message ? ` ${googleError.message}` : ""}`;
         }
 
         state.cleanup.push(() => controller?.destroy?.());
         if (focusPosition) {
           controller.panTo(focusPosition);
           controller.setZoom(15);
-          await searchCenter(focusPosition, { scrollToSelected: true });
+          await controller.waitForIdle?.();
+          searchVisibleArea({ autoOpen: true, preserveSelection: true, single: true, scrollToSelected: true });
         } else {
-          await searchCenter(start);
+          await controller.waitForIdle?.();
+          searchVisibleArea({ autoOpen: false });
+          collapseSheet();
         }
       } catch (error) {
         console.error(error);
         showStatus(error?.message || "地圖載入失敗。");
       }
 
-      document.querySelector("#search-area").addEventListener("click", searchVisibleArea);
+      document.querySelector("#search-area").addEventListener("click", () => searchVisibleArea({ autoOpen: true }));
 
       document.querySelector("#current-location").addEventListener("click", async () => {
         try {
           const position = await getCurrentPosition();
           controller?.panTo(position);
-          controller?.setZoom(13);
+          controller?.setZoom(14);
           controller?.setCurrentPosition(position);
           selected.selectedBookmarkId = "";
-          await searchCenter(position);
+          await controller?.waitForIdle?.();
+          searchVisibleArea({ autoOpen: true });
         } catch (error) {
           showToast(error?.message || "無法取得位置。", "error");
         }
       });
 
-      document.querySelector("#map-radius").addEventListener("change", () => {
+      categorySelect.addEventListener("change", () => {
+        selected.categoryId = categorySelect.value;
         selected.selectedBookmarkId = "";
-        searchCenter(controller?.getCenter() || selected.center);
+        renderMarkers({ autoOpen: true });
       });
-      document.querySelectorAll("[data-map-category]").forEach((button) => button.addEventListener("click", () => {
-        selected.categoryId = button.dataset.mapCategory;
-        selected.selectedBookmarkId = "";
-        document.querySelectorAll("[data-map-category]").forEach((item) => item.classList.toggle("active", item === button));
-        renderMarkers();
-      }));
     }
 
     function openModal(content, onReady) {

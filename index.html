@@ -2,6 +2,9 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#ff8b6a" />
   <meta name="description" content="短影音收藏中心" />
@@ -191,6 +194,16 @@
     .hero-stat { padding: 7px 10px; background: rgba(255,255,255,.2); border-radius: 999px; font-size: 12px; font-weight: 800; }
 
     .toolbar { display: flex; flex-wrap: wrap; gap: 9px; align-items: center; margin-bottom: 12px; }
+    .home-toolbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 126px;
+      gap: 9px;
+      align-items: start;
+      margin-bottom: 12px;
+    }
+    .home-toolbar-actions { display: grid; gap: 7px; justify-items: stretch; }
+    .home-toolbar-actions .home-wishlist { justify-self: end; }
+    .home-toolbar-actions select { width: 100%; min-width: 0; }
     .search-wrap { position: relative; flex: 1 1 220px; }
     .search-wrap svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: var(--muted); }
     .search-wrap input { padding-left: 39px; }
@@ -476,6 +489,14 @@
     #current-location { width: 54px; min-width: 54px; padding: 0; }
     #current-location svg { width: 24px; height: 24px; }
     .map-wishlist { width: 48px; min-width: 48px; padding: 0; }
+    .map-toolbar .map-wishlist.active {
+      color: #ffffff;
+      background: #f4b942;
+      background-color: #f4b942;
+      border-color: #d99516;
+      box-shadow: 0 7px 16px rgba(217,149,22,.28);
+    }
+    .map-toolbar .map-wishlist.active svg { fill: #ffffff; stroke: #ffffff; }
     .map-shell { position: absolute; inset: 0; overflow: hidden; border: 0; border-radius: 0; background: #eaf3ee; box-shadow: none; }
     .map-canvas { width: 100%; height: 100%; min-height: 0; z-index: 1; }
     .map-canvas .leaflet-control-container { font-size: 12px; }
@@ -704,6 +725,7 @@
       .map-location-label { display: none; }
       .form-actions .btn { flex: 1 1 120px; }
     }
+      @media (max-width: 460px) { .home-toolbar { grid-template-columns: minmax(0, 1fr) 116px; } }
   </style>
 </head>
 <body>
@@ -772,7 +794,7 @@
       googleMapsMapId: "d4056d4f23c4e1a4fb2b395b",
       // 部署雲端函式後，僅需把觸發網址貼在這裡一次。
       // 尚未填入時：YouTube 仍可自動讀取；Meta 平台會退回手動標題＋平台圖示。
-      metadataFunctionUrl: "https://fetch-video-metadata-774442944506.asia-east1.run.app/",
+      metadataFunctionUrl: "https://fetch-video-metadata-774442944506.asia-east1.run.app",
       sharedWorkspaceId: "shared",
       allowedEmails: [
         "baritone90064@gmail.com",
@@ -782,6 +804,8 @@
       defaultRadiusKm: 20,
       pageSize: 500
     };
+    const APP_BUILD = "2026-07-23-meta-fix-1";
+    console.info(`[短影音收藏中心] build ${APP_BUILD}`, CONFIG.metadataFunctionUrl);
 
     const ICON_PATHS = {
       home: '<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10.5V20h13v-9.5"/><path d="M9.5 20v-6h5v6"/>',
@@ -1122,21 +1146,42 @@
     }
 
     async function fetchMetadataFromFunction(url) {
-      const endpoint = String(CONFIG.metadataFunctionUrl || "").trim();
-      if (!endpoint) throw new Error("尚未設定 Meta 公開內容讀取函式。");
-      const token = await auth.currentUser?.getIdToken();
+      const fallbackEndpoint = "https://fetch-video-metadata-774442944506.asia-east1.run.app";
+      const endpoint = String(CONFIG.metadataFunctionUrl || fallbackEndpoint)
+        .trim()
+        .replace(/\/+$/, "");
+      if (!endpoint) throw new Error("Meta 公開內容讀取函式網址為空白。");
+
+      const token = await auth.currentUser?.getIdToken(true);
       if (!token) throw new Error("請先登入。");
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ url })
-      });
+
+      let response;
+      try {
+        response = await fetch(endpoint, {
+          method: "POST",
+          mode: "cors",
+          cache: "no-store",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ url })
+        });
+      } catch (error) {
+        console.error("metadata function network error", { endpoint, error });
+        throw new Error("無法連線到雲端讀取函式。請確認 Cloud Run 已允許公開叫用、CORS 已包含 GitHub Pages 網域，並重新部署函式。");
+      }
+
+      const rawText = await response.text();
       let data = {};
-      try { data = await response.json(); } catch {}
-      if (!response.ok) throw new Error(data.error || `公開內容讀取失敗（${response.status}）。`);
+      try { data = rawText ? JSON.parse(rawText) : {}; } catch {
+        console.error("metadata function invalid response", { status: response.status, rawText });
+        throw new Error("雲端函式回傳格式不正確。請確認函式進入點為 fetchVideoMetadata，而不是 helloHttp，並按「儲存並重新部署」。");
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || `公開內容讀取失敗（${response.status}）。`);
+      }
       return data;
     }
 
@@ -1347,7 +1392,7 @@
         title: "我的收藏",
         subtitle: "手機快速瀏覽與整理",
         active: "home",
-        content: `<div class="toolbar"><div class="search-wrap">${icon("search")}<input id="home-search" type="search" placeholder="搜尋標題、標籤、備註或地點" /></div><select id="home-sort" style="width:auto"><option value="newest">最新加入</option><option value="distance">距離最近</option></select><button class="btn btn-secondary home-wishlist" data-wishlist-filter aria-label="只看願望清單" aria-pressed="false" title="只看願望清單">${icon("star")}</button></div>
+        content: `<div class="home-toolbar"><div class="search-wrap">${icon("search")}<input id="home-search" type="search" placeholder="搜尋標題、標籤、備註或地點" /></div><div class="home-toolbar-actions"><button class="btn btn-secondary home-wishlist" data-wishlist-filter aria-label="只看願望清單" aria-pressed="false" title="只看願望清單">${icon("star")}</button><select id="home-sort" aria-label="收藏排序"><option value="newest">最新加入</option><option value="distance">距離最近</option></select></div></div>
           <div class="chips">
             <button class="chip active" data-filter="">全部</button>
             ${state.categories.map((category) => `<button class="chip" style="--chip-color:${escapeHtml(categoryColor(category))}" data-filter="${category.id}">${escapeHtml(category.name)}</button>`).join("")}

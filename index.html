@@ -357,7 +357,7 @@
     }
     .platform-fallback.logo-failed .platform-logo-letter,
     .platform-fallback.logo-failed .platform-name { display: block; }
-    .bookmark-content { position: relative; min-width: 0; display: grid; gap: 5px; align-content: start; padding-right: 35px; }
+    .bookmark-content { position: relative; min-width: 0; display: grid; gap: 5px; align-content: start; padding-right: 68px; }
     .bookmark-summary {
       min-width: 0;
       display: grid;
@@ -401,16 +401,25 @@
       box-shadow: 0 4px 11px color-mix(in srgb, var(--category-color, #9a96a1) 30%, transparent);
     }
     .bookmark-category-badge svg { width: 17px; height: 17px; }
-    .wishlist-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      flex: 0 0 auto;
-      color: #b96d09;
-      font-weight: 800;
-      line-height: 1.45;
+    .bookmark-wishlist-mark {
+      position: absolute;
+      top: 3px;
+      right: 37px;
+      width: 23px;
+      height: 23px;
+      display: grid;
+      place-items: center;
+      color: #f4b942;
+      filter: drop-shadow(0 2px 3px rgba(190,119,8,.20));
+      pointer-events: none;
     }
-    .wishlist-badge svg { width: 13px; height: 13px; fill: #f4b942; stroke: #d58b12; }
+    .bookmark-wishlist-mark svg {
+      width: 20px;
+      height: 20px;
+      fill: #f4b942;
+      stroke: #d58b12;
+      stroke-width: 1.8;
+    }
     .wishlist-control {
       display: flex;
       align-items: flex-start;
@@ -718,7 +727,7 @@
       left: 10px;
       right: 10px;
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 48px 54px;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 48px 48px;
       gap: 6px;
       align-items: center;
       pointer-events: none;
@@ -734,7 +743,7 @@
     .map-toolbar .btn { white-space: nowrap; }
     .map-toolbar select { min-width: 0; padding-right: 28px; }
     .map-toolbar .btn-soft { color: var(--mint-deep); background: rgba(221,246,236,.97); }
-    #current-location { width: 54px; min-width: 54px; padding: 0; }
+    #current-location { width: 48px; min-width: 48px; padding: 0; }
     #current-location svg { width: 24px; height: 24px; }
     .map-wishlist { width: 48px; min-width: 48px; padding: 0; }
     .map-toolbar .map-wishlist.active {
@@ -971,7 +980,7 @@
       .category-row { grid-template-columns: 36px 38px minmax(0,1fr) auto auto; padding: 9px; }
       .category-icon { width: 38px; height: 38px; }
       .place-map { min-height: 280px; }
-      .map-toolbar { grid-template-columns: minmax(0,1fr) minmax(0,1fr) 46px 50px; gap: 5px; }
+      .map-toolbar { grid-template-columns: minmax(0,1fr) minmax(0,1fr) 48px 48px; gap: 5px; }
       .map-toolbar .btn { padding: 8px 10px; }
       .map-location-label { display: none; }
       .form-actions .btn { flex: 1 1 120px; }
@@ -1060,7 +1069,7 @@
       defaultRadiusKm: 20,
       pageSize: 500
     };
-    const APP_BUILD = "2026-07-23-bookmark-detail-v15";
+    const APP_BUILD = "2026-07-23-wishlist-map-buttons-v16";
     console.info(`[短影音收藏中心] build ${APP_BUILD}`, CONFIG.metadataFunctionUrl);
 
     const ICON_PATHS = {
@@ -1609,13 +1618,13 @@
       return `<article class="bookmark-row card">
         <div class="bookmark-thumb">${image}</div>
         <div class="bookmark-content">
+          ${bookmark.wishlist ? `<span class="bookmark-wishlist-mark" aria-label="願望清單" title="願望清單">${icon("star")}</span>` : ""}
           <span class="bookmark-category-badge" style="--category-color:${escapeHtml(categoryColor(category))}" title="${escapeHtml(category.name)}">${icon(categoryIconName(category))}</span>
           <div class="bookmark-summary" data-open-bookmark="${bookmark.id}" role="button" tabindex="0" aria-label="查看「${escapeHtml(bookmark.title || "未命名收藏")}」完整資訊與備註">
             <h3 class="bookmark-title">${escapeHtml(bookmark.title || "未命名收藏")}</h3>
             <div class="bookmark-meta">
               <span class="category-pill" style="--category-color:${escapeHtml(categoryColor(category))}">${escapeHtml(category.name)}</span>
               <span class="meta-item"><span class="meta-text">${escapeHtml(platformMeta(bookmark.platform).label)}</span></span>
-              ${bookmark.wishlist ? `<span class="wishlist-badge">${icon("star")}願望</span>` : ""}
               ${bookmark.location?.placeName ? `<span class="meta-item">${icon("location")}<span class="meta-text">${escapeHtml(bookmark.location.placeName)}</span></span>` : ""}
               ${Number.isFinite(Number(bookmark.distanceKm)) ? `<span class="meta-item">${icon("compass")}<span class="meta-text">${Number(bookmark.distanceKm).toFixed(Number(bookmark.distanceKm) < 10 ? 1 : 0)} km</span></span>` : ""}
               ${displayDate ? `<span class="meta-item"><span class="meta-text">${formatDate(displayDate)}</span></span>` : ""}
@@ -2485,7 +2494,7 @@
             <button class="btn btn-secondary" id="search-area">${icon("search")}<span>搜尋此區域</span></button>
             <select id="map-category" aria-label="分類"><option value="">全部分類</option>${state.categories.map((category) => `<option value="${escapeHtml(category.id)}">${escapeHtml(category.name)}</option>`).join("")}</select>
             <button class="btn btn-secondary map-wishlist" id="map-wishlist" aria-label="只看願望清單" aria-pressed="false" title="只看願望清單">${icon("star")}</button>
-            <button class="btn btn-soft" id="current-location" aria-label="目前位置" title="目前位置">${icon("compass")}<span class="map-location-label">目前位置</span></button>
+            <button class="btn btn-soft" id="current-location" aria-label="目前位置" title="目前位置">${icon("compass")}</button>
           </div>
           <div class="map-shell"><div id="map-status" class="map-status"></div><div id="main-map" class="map-canvas"></div></div>
           <p id="map-provider-note" class="map-provider-note map-provider-overlay"></p>

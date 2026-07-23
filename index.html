@@ -138,6 +138,8 @@
     .topbar-wishlist svg { width: 17px; height: 17px; fill: none; stroke: currentColor; }
     .topbar-wishlist.active { color: #ffffff; background: #f4b942; border-color: #d99516; box-shadow: 0 5px 12px rgba(217,149,22,.22); }
     .topbar-wishlist.active svg { fill: #ffffff; stroke: #ffffff; }
+    .topbar-action { flex: 0 0 auto; display: flex; align-items: center; align-self: center; }
+    .topbar-action .btn { min-height: 36px; padding: 7px 10px; border-radius: 12px; font-size: 12px; }
     .page { width: min(1040px, 100%); margin: 0 auto; padding: 14px 14px 28px; }
 
     .bottom-nav {
@@ -260,6 +262,7 @@
       outline: none;
     }
     textarea { min-height: 96px; resize: vertical; }
+    .bookmark-note-input { min-height: 190px; }
     input:focus, select:focus, textarea:focus { border-color: var(--coral); box-shadow: 0 0 0 4px rgba(255,128,102,.12); background: white; }
     label.field { display: grid; gap: 6px; color: var(--text-strong); font-weight: 800; font-size: 14px; }
     label.field small { color: var(--muted); font-weight: 400; line-height: 1.5; }
@@ -743,9 +746,8 @@
     .map-toolbar .btn { white-space: nowrap; }
     .map-toolbar select { min-width: 0; padding-right: 28px; }
     .map-toolbar .btn-soft { color: var(--mint-deep); background: rgba(221,246,236,.97); }
-    #current-location { width: 48px; min-width: 48px; height: 48px; min-height: 48px; padding: 0; }
+    .map-wishlist, #current-location { width: 48px; min-width: 48px; height: 44px; min-height: 44px; padding: 0; }
     #current-location svg { width: 24px; height: 24px; }
-    .map-wishlist { width: 48px; min-width: 48px; padding: 0; }
     .map-toolbar .map-wishlist.active {
       color: #ffffff;
       background: #f4b942;
@@ -872,6 +874,7 @@
     .map-marker-pin { width: 31px; height: 41px; filter: drop-shadow(0 3px 3px rgba(36,31,28,.25)); }
 
     .category-add { display: grid; grid-template-columns: minmax(0,1fr) 50px auto; gap: 9px; align-items: end; margin-bottom: 15px; }
+    .category-add-label { display: block; padding-left: 1em; }
     .icon-picker-wrap { grid-column: 1 / -1; }
     .icon-picker-summary {
       min-height: 45px;
@@ -952,7 +955,6 @@
     .category-name { min-width: 0; }
     .category-name strong { display: block; color: var(--text-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .category-name small { color: var(--muted); }
-    .logout-wrap { display: flex; justify-content: center; margin-top: 18px; }
 
     .modal-backdrop { position: fixed; inset: 0; z-index: 200; display: grid; place-items: end center; background: rgba(38,36,44,.42); padding: 14px; }
     .modal { width: min(520px, 100%); max-height: 86vh; overflow: auto; padding: 18px; border-radius: 24px 24px 18px 18px; background: white; box-shadow: 0 22px 60px rgba(0,0,0,.24); }
@@ -1545,9 +1547,9 @@
       navNode.querySelectorAll("[data-nav]").forEach((button) => button.addEventListener("click", () => go(button.dataset.nav)));
     }
 
-    function shell({ title, subtitle = "", subtitleAction = "", active, content }) {
+    function shell({ title, subtitle = "", subtitleAction = "", headerAction = "", active, content }) {
       appRoot.innerHTML = `<div class="app-shell">
-        <header class="topbar"><div class="top-title"><div class="brand-mark"><img src="./icon.svg?v=20260723-2" alt="" /></div><div class="top-copy"><strong>${escapeHtml(title)}</strong>${subtitle ? `<div class="top-subrow"><small>${escapeHtml(subtitle)}</small>${subtitleAction}</div>` : ""}</div></div></header>
+        <header class="topbar"><div class="top-title"><div class="brand-mark"><img src="./icon.svg?v=20260723-2" alt="" /></div><div class="top-copy"><strong>${escapeHtml(title)}</strong>${subtitle ? `<div class="top-subrow"><small>${escapeHtml(subtitle)}</small>${subtitleAction}</div>` : ""}</div></div>${headerAction ? `<div class="topbar-action">${headerAction}</div>` : ""}</header>
         <main class="page">${content}</main>
       </div>`;
       mountBottomNav(active);
@@ -2225,7 +2227,7 @@
               <span class="wishlist-label">${icon("star")}<strong>加入願望清單</strong></span>
             </label>
             <label class="field">標籤<input id="bookmark-tags" value="${escapeHtml((existing?.tags || []).join(", "))}" placeholder="以逗號分隔，例如：花蓮、瀑布、車宿" /></label>
-            <label class="field">備註<textarea id="bookmark-note" placeholder="推薦餐點、交通方式、購買原因或重點摘要…">${escapeHtml(existing?.note || "")}</textarea></label>
+            <label class="field">備註<textarea id="bookmark-note" class="bookmark-note-input" placeholder="推薦餐點、交通方式、購買原因或重點摘要…">${escapeHtml(existing?.note || "")}</textarea></label>
           </div></section>
           ${locationSection(placeState)}
           <div id="form-message"></div>
@@ -2521,10 +2523,12 @@
         categoryId: "",
         wishlistOnly: false,
         center: { ...CONFIG.defaultCenter },
+        distanceOrigin: null,
         records: [],
         selectedBookmarkId: focusId || ""
       };
       let controller = null;
+      let currentPosition = null;
       let sheetHeight = 30;
       let lastExpandedHeight = 180;
 
@@ -2790,21 +2794,23 @@
         if (!controller) return;
         const center = controller.getCenter();
         selected.center = center;
+        const distanceOrigin = currentPosition || selected.distanceOrigin || center;
+        selected.distanceOrigin = distanceOrigin;
         const records = state.bookmarks.filter((bookmark) =>
           bookmark.hasLocation &&
           bookmark.location?.latitude != null &&
           bookmark.location?.longitude != null &&
           controller.contains(bookmark.location)
         );
-        selected.records = withDistances(records, center);
+        selected.records = withDistances(records, distanceOrigin);
         if (!preserveSelection) selected.selectedBookmarkId = "";
         renderMarkers({ autoOpen, single, scrollToSelected });
       };
 
       try {
         showStatus("正在載入地圖…");
-        let currentPosition = null;
         try { currentPosition = await getCurrentPosition(); } catch {}
+        selected.distanceOrigin = currentPosition || null;
         const focusBookmark = focusId
           ? state.bookmarks.find((item) => item.id === focusId && item.hasLocation && item.location?.latitude != null && item.location?.longitude != null)
           : null;
@@ -2846,6 +2852,8 @@
       document.querySelector("#current-location").addEventListener("click", async () => {
         try {
           const position = await getCurrentPosition();
+          currentPosition = position;
+          selected.distanceOrigin = position;
           controller?.panTo(position);
           controller?.setZoom(14);
           controller?.setCurrentPosition(position);
@@ -2910,10 +2918,11 @@
       state.bookmarks.forEach((bookmark) => counts.set(bookmark.categoryId, (counts.get(bookmark.categoryId) || 0) + 1));
       shell({
         title: "分類管理",
-        subtitle: "共同管理收藏分類",
+        subtitle: "管理收藏分類",
+        headerAction: `<button id="logout" class="btn btn-secondary">${icon("logout")}登出</button>`,
         active: "settings",
         content: `<section class="card panel"><div class="section-head"><div class="section-title"><span class="section-icon">${icon("settings")}</span><h2>分類管理</h2></div><span class="small muted">${state.categories.length} 個分類</span></div>
-          <form id="add-category-form" class="category-add"><label class="field">新增分類<input id="new-category-name" maxlength="20" placeholder="分類名稱" required /></label><label class="field">顏色<input id="new-category-color" class="color-input" type="color" value="#ff8066" aria-label="分類顏色" /></label><button class="btn btn-primary" type="submit">${icon("plus")}新增</button>${iconPicker("new-category-icon", "sparkles")}</form>
+          <form id="add-category-form" class="category-add"><label class="field"><span class="category-add-label">新增分類</span><input id="new-category-name" maxlength="20" placeholder="分類名稱" required /></label><label class="field"><span class="category-add-label">顏色</span><input id="new-category-color" class="color-input" type="color" value="#ff8066" aria-label="分類顏色" /></label><button class="btn btn-primary" type="submit">${icon("plus")}新增</button>${iconPicker("new-category-icon", "sparkles")}</form>
           <div id="category-sort-list" class="category-list">${state.categories.map((category) => `<div class="category-row" data-category-id="${category.id}">
             <span class="category-order"><button type="button" class="drag-handle" data-drag-category aria-label="拖曳調整順序" title="拖曳調整順序">${icon("drag")}</button></span>
             <span class="category-icon" style="--category-color:${escapeHtml(categoryColor(category))}">${icon(categoryIconName(category))}</span>
@@ -2922,7 +2931,7 @@
             <button class="btn btn-small btn-icon btn-danger" data-delete-category="${category.id}" ${category.system ? "disabled" : ""} aria-label="刪除">${icon("trash")}</button>
           </div>`).join("")}</div>
           <div class="category-sort-actions"><button type="button" class="btn btn-secondary" id="reset-category-order" disabled>還原排序</button><button type="button" class="btn btn-primary" id="save-category-order" disabled>${icon("check")}儲存排序</button></div>
-        </section><div class="logout-wrap"><button id="logout" class="btn btn-secondary">${icon("logout")}登出</button></div>`
+        </section>`
       });
 
       bindIconPickers(document);

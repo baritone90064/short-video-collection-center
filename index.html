@@ -134,10 +134,6 @@
     .top-copy strong { display: block; color: var(--text-strong); font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .top-subrow { display: flex; align-items: center; gap: 8px; min-width: 0; margin-top: 1px; }
     .top-subrow small { display: block; min-width: 0; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .topbar-wishlist { width: 30px; min-width: 30px; height: 30px; min-height: 30px; padding: 0; border-radius: 10px; flex: 0 0 auto; }
-    .topbar-wishlist svg { width: 17px; height: 17px; fill: none; stroke: currentColor; }
-    .topbar-wishlist.active { color: #ffffff; background: #f4b942; border-color: #d99516; box-shadow: 0 5px 12px rgba(217,149,22,.22); }
-    .topbar-wishlist.active svg { fill: #ffffff; stroke: #ffffff; }
     .topbar-action { flex: 0 0 auto; display: flex; align-items: center; align-self: center; }
     .topbar-action .btn { min-height: 36px; padding: 7px 10px; border-radius: 12px; font-size: 12px; }
     .page { width: min(1040px, 100%); margin: 0 auto; padding: 14px 14px 28px; }
@@ -185,23 +181,7 @@
 
     .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
     .panel { padding: 16px; }
-    .hero {
-      position: relative;
-      overflow: hidden;
-      padding: 18px;
-      margin-bottom: 14px;
-      border-radius: 24px;
-      color: white;
-      background: linear-gradient(125deg, var(--coral), var(--orange) 62%, var(--yellow));
-      box-shadow: var(--shadow-float);
-    }
-    .hero::after { content: ""; position: absolute; width: 130px; height: 130px; border-radius: 50%; background: rgba(255,255,255,.20); right: -35px; top: -50px; }
-    .hero h1 { position: relative; z-index: 1; margin: 0; font-size: 24px; }
-    .hero p { position: relative; z-index: 1; margin: 7px 0 0; font-size: 14px; line-height: 1.6; }
-    .hero-stats { position: relative; z-index: 1; display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
-    .hero-stat { padding: 7px 10px; background: rgba(255,255,255,.2); border-radius: 999px; font-size: 12px; font-weight: 800; }
 
-    .toolbar { display: flex; flex-wrap: wrap; gap: 9px; align-items: center; margin-bottom: 12px; }
     .home-toolbar {
       display: grid;
       grid-template-columns: minmax(0, 1fr) 48px 48px;
@@ -246,8 +226,9 @@
     .home-sort-option:hover,
     .home-sort-option:active { background: #fff4ec; }
     .home-sort-option.active { color: var(--coral-deep); background: var(--coral-soft); }
-    .home-sort-option svg { width: 16px; height: 16px; opacity: 0; flex: 0 0 auto; }
-    .home-sort-option.active svg { opacity: 1; }
+    .home-sort-direction { width: 18px; height: 18px; display: grid; place-items: center; flex: 0 0 auto; opacity: 0; }
+    .home-sort-direction svg { width: 16px; height: 16px; }
+    .home-sort-option.active .home-sort-direction { opacity: 1; }
     .search-wrap { position: relative; flex: 1 1 220px; }
     .search-wrap svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: var(--muted); }
     .search-wrap input { padding-left: 39px; }
@@ -635,9 +616,6 @@
     .empty svg { width: 46px; height: 46px; color: var(--mint); margin: 0 auto 10px; }
 
     .form-card { overflow: hidden; }
-    .form-banner { padding: 17px; color: white; background: linear-gradient(120deg, var(--coral), var(--orange)); }
-    .form-banner h2 { margin: 0; font-size: 20px; }
-    .form-banner p { margin: 5px 0 0; font-size: 13px; opacity: .95; }
     .form-body { padding: 14px; }
     .place-tools { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
     .place-tools .btn { width: 100%; min-width: 0; }
@@ -664,9 +642,6 @@
     .metadata-preview-copy { min-width: 0; }
     .metadata-preview-copy strong { display: block; color: var(--text-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .metadata-preview-copy small { display: block; margin-top: 3px; color: var(--muted); line-height: 1.4; }
-    .advanced-details { border: 1px solid var(--line); border-radius: 14px; background: #fffdfa; }
-    .advanced-details summary { padding: 10px 12px; color: var(--muted); font-size: 12px; font-weight: 800; cursor: pointer; }
-    .advanced-details > div { padding: 0 12px 12px; }
     .place-autocomplete-wrap { position: relative; }
     .place-suggestions {
       position: absolute;
@@ -703,10 +678,6 @@
     .coordinate-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
     .coordinate-row .btn { min-width: 86px; }
     .map-provider-note { margin: 8px 2px 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
-    .place-picker { margin-top: 12px; border: 1px solid #cfe9de; border-radius: 18px; overflow: hidden; background: #edf7f2; }
-    .place-search { padding: 10px; background: #f7fcf9; border-bottom: 1px solid #cfe9de; }
-    .place-map { min-height: 310px; background: #edf4f0; }
-    .coordinate-note { margin: 9px 0 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
 
     body.map-view { overflow: hidden; }
     body.map-view .app-shell {
@@ -962,7 +933,6 @@
 
     .alert { padding: 11px 13px; border-radius: 13px; font-size: 13px; line-height: 1.55; }
     .alert-error { color: var(--danger); background: var(--danger-soft); }
-    .alert-success { color: var(--mint-deep); background: var(--mint-soft); }
     #toast-root { position: fixed; z-index: 300; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(92vw, 430px); pointer-events: none; }
     .toast { margin-top: 8px; padding: 11px 14px; border-radius: 14px; color: white; background: #3b3943; box-shadow: var(--shadow); font-size: 13px; animation: toast-in .18s ease; }
     .toast.success { background: var(--mint-deep); }
@@ -981,10 +951,8 @@
       .icon-picker { grid-template-columns: repeat(5, minmax(0,1fr)); }
       .category-row { grid-template-columns: 36px 38px minmax(0,1fr) auto auto; padding: 9px; }
       .category-icon { width: 38px; height: 38px; }
-      .place-map { min-height: 280px; }
       .map-toolbar { grid-template-columns: minmax(0,1fr) minmax(0,1fr) 48px 48px; gap: 5px; }
       .map-toolbar .btn { padding: 8px 10px; }
-      .map-location-label { display: none; }
       .form-actions .btn { flex: 1 1 120px; }
     }
       @media (max-width: 460px) {
@@ -1027,22 +995,19 @@
       collection,
       deleteDoc,
       doc,
-      endAt,
       getDocs,
       getFirestore,
       limit,
       orderBy,
       query,
       serverTimestamp,
-      startAt,
       updateDoc,
       where,
       writeBatch
     } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
     import {
       distanceBetween,
-      geohashForLocation,
-      geohashQueryBounds
+      geohashForLocation
     } from "https://cdn.jsdelivr.net/npm/geofire-common@6.0.0/+esm";
 
     /* =============================================================================================
@@ -1071,7 +1036,7 @@
       defaultRadiusKm: 20,
       pageSize: 500
     };
-    const APP_BUILD = "2026-07-23-wishlist-map-buttons-v16";
+    const APP_BUILD = "2026-07-24-sort-toggle-cleanup-v20";
     console.info(`[短影音收藏中心] build ${APP_BUILD}`, CONFIG.metadataFunctionUrl);
 
     const ICON_PATHS = {
@@ -1329,14 +1294,6 @@
       await batch.commit();
     }
 
-    async function moveCategory(id, direction) {
-      const index = state.categories.findIndex((item) => item.id === id);
-      const nextIndex = direction === "up" ? index - 1 : index + 1;
-      if (index < 0 || nextIndex < 0 || nextIndex >= state.categories.length) return false;
-      [state.categories[index], state.categories[nextIndex]] = [state.categories[nextIndex], state.categories[index]];
-      await saveCategoryOrder();
-      return true;
-    }
 
     async function deleteCategory(id) {
       const used = await getDocs(query(bookmarksRef(), where("categoryId", "==", id), limit(1)));
@@ -1344,24 +1301,6 @@
       await deleteDoc(doc(db, "workspaces", CONFIG.sharedWorkspaceId, "categories", id));
     }
 
-    async function queryNearby(center, radiusKm) {
-      const bounds = geohashQueryBounds([Number(center.latitude), Number(center.longitude)], Number(radiusKm) * 1000);
-      const snapshots = await Promise.all(bounds.map(([start, end]) => getDocs(
-        query(bookmarksRef(), orderBy("location.geohash"), startAt(start), endAt(end))
-      )));
-      const unique = new Map();
-      snapshots.forEach((snapshot) => snapshot.docs.forEach((item) => {
-        const bookmark = { id: item.id, ...item.data() };
-        if (bookmark.hasLocation && bookmark.location?.latitude != null && bookmark.location?.longitude != null) unique.set(bookmark.id, bookmark);
-      }));
-      return [...unique.values()].map((bookmark) => ({
-        ...bookmark,
-        distanceKm: distanceBetween(
-          [center.latitude, center.longitude],
-          [Number(bookmark.location.latitude), Number(bookmark.location.longitude)]
-        )
-      })).filter((bookmark) => bookmark.distanceKm <= radiusKm).sort((a, b) => a.distanceKm - b.distanceKm);
-    }
 
     function normalizeUrl(value) {
       const raw = String(value || "").trim();
@@ -1782,12 +1721,22 @@
     async function renderHome() {
       cleanups();
       await loadCoreData();
-      const local = { search: "", categoryId: "", wishlistOnly: false, sort: "newest", currentPosition: null };
+
+      const local = {
+        search: "",
+        categoryId: "",
+        wishlistOnly: false,
+        sortKey: "newest",
+        sortReversed: false,
+        lastSortSelection: "",
+        currentPosition: null
+      };
+
       shell({
         title: "我的收藏",
         subtitle: "手機快速瀏覽與整理",
         active: "home",
-        content: `<div class="home-toolbar"><div class="search-wrap">${icon("search")}<input id="home-search" type="search" placeholder="搜尋標題、標籤、備註或地點" /></div><button class="btn btn-secondary home-wishlist" data-wishlist-filter aria-label="只看願望清單" aria-pressed="false" title="只看願望清單">${icon("star")}</button><div class="home-sort-wrap"><button type="button" class="btn btn-secondary home-sort-button" id="home-sort-button" aria-label="收藏排序" aria-haspopup="menu" aria-expanded="false" title="排序：最新加入">${icon("sort")}</button><div class="home-sort-menu" id="home-sort-menu" role="menu"><button type="button" class="home-sort-option active" data-home-sort="newest" role="menuitem"><span>最新加入</span>${icon("check")}</button><button type="button" class="home-sort-option" data-home-sort="distance" role="menuitem"><span>距離最近</span>${icon("check")}</button></div></div></div>
+        content: `<div class="home-toolbar"><div class="search-wrap">${icon("search")}<input id="home-search" type="search" placeholder="搜尋標題、標籤、備註或地點" /></div><button class="btn btn-secondary home-wishlist" data-wishlist-filter aria-label="只看願望清單" aria-pressed="false" title="只看願望清單">${icon("star")}</button><div class="home-sort-wrap"><button type="button" class="btn btn-secondary home-sort-button" id="home-sort-button" aria-label="收藏排序：最新優先" aria-haspopup="menu" aria-expanded="false" title="排序：最新優先">${icon("sort")}</button><div class="home-sort-menu" id="home-sort-menu" role="menu"><button type="button" class="home-sort-option active" data-home-sort="newest" role="menuitem"><span>最新加入</span><span class="home-sort-direction">${icon("chevronDown")}</span></button><button type="button" class="home-sort-option" data-home-sort="distance" role="menuitem"><span>距離最近</span><span class="home-sort-direction">${icon("chevronDown")}</span></button></div></div></div>
           <div class="chips">
             <button class="chip active" data-filter="">全部</button>
             ${state.categories.map((category) => `<button class="chip" style="--chip-color:${escapeHtml(categoryColor(category))}" data-filter="${category.id}">${escapeHtml(category.name)}</button>`).join("")}
@@ -1796,73 +1745,130 @@
       });
 
       const list = document.querySelector("#bookmark-list");
-      const refresh = () => {
-        let records = [...state.bookmarks];
-        if (local.categoryId) records = records.filter((item) => item.categoryId === local.categoryId);
-        if (local.wishlistOnly) records = records.filter((item) => item.wishlist === true);
-        const keyword = local.search.toLowerCase();
-        if (keyword) records = records.filter((item) => [item.title, item.note, item.location?.placeName, item.location?.address, ...(item.tags || [])].join(" ").toLowerCase().includes(keyword));
-        if (local.sort === "distance" && local.currentPosition) {
-          records = records.map((item) => {
-            const hasCoordinates = item.hasLocation === true
-              && item.location?.latitude != null
-              && item.location?.longitude != null;
-            const latitude = Number(item.location?.latitude);
-            const longitude = Number(item.location?.longitude);
-            const distanceKm = hasCoordinates && Number.isFinite(latitude) && Number.isFinite(longitude)
-              ? distanceBetween(
-                  [local.currentPosition.latitude, local.currentPosition.longitude],
-                  [latitude, longitude]
-                )
-              : Number.POSITIVE_INFINITY;
-            return { ...item, distanceKm };
-          }).sort((a, b) => Number(a.distanceKm) - Number(b.distanceKm));
-        } else {
-          records.sort((a, b) => {
-            const ta = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-            const tb = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-            return tb - ta;
-          });
-        }
-        list.innerHTML = records.length ? records.map(bookmarkRow).join("") : `<div class="card empty">${icon("sparkles")}<p>目前沒有符合條件的收藏。</p></div>`;
-        bindBookmarkRows(refresh);
-      };
-
-      document.querySelector("#home-search").addEventListener("input", (event) => { local.search = event.target.value.trim(); refresh(); });
       const sortWrap = document.querySelector(".home-sort-wrap");
       const sortButton = document.querySelector("#home-sort-button");
       const sortMenu = document.querySelector("#home-sort-menu");
       const sortOptions = [...document.querySelectorAll("[data-home-sort]")];
+
+      const timestamp = (value) => value?.toMillis ? value.toMillis() : 0;
+      const sortLabel = () => {
+        if (local.sortKey === "distance") return local.sortReversed ? "距離最遠" : "距離最近";
+        return local.sortReversed ? "最舊優先" : "最新優先";
+      };
+      const updateSortUi = () => {
+        const label = sortLabel();
+        sortButton.title = `排序：${label}`;
+        sortButton.setAttribute("aria-label", `收藏排序：${label}`);
+        sortOptions.forEach((option) => {
+          const active = option.dataset.homeSort === local.sortKey;
+          option.classList.toggle("active", active);
+          option.setAttribute("aria-current", active ? "true" : "false");
+          const direction = option.querySelector(".home-sort-direction");
+          if (direction) direction.innerHTML = icon(active && local.sortReversed ? "chevronUp" : "chevronDown");
+        });
+      };
       const closeSortMenu = () => {
         sortMenu.classList.remove("show");
         sortButton.setAttribute("aria-expanded", "false");
       };
+      const compareDistance = (a, b) => {
+        const aDistance = Number(a.distanceKm);
+        const bDistance = Number(b.distanceKm);
+        const aValid = Number.isFinite(aDistance);
+        const bValid = Number.isFinite(bDistance);
+        if (aValid !== bValid) return aValid ? -1 : 1;
+        if (!aValid) return 0;
+        return local.sortReversed ? bDistance - aDistance : aDistance - bDistance;
+      };
+      const refresh = () => {
+        let records = [...state.bookmarks];
+        if (local.categoryId) records = records.filter((item) => item.categoryId === local.categoryId);
+        if (local.wishlistOnly) records = records.filter((item) => item.wishlist === true);
+
+        const keyword = local.search.toLowerCase();
+        if (keyword) {
+          records = records.filter((item) => [
+            item.title,
+            item.note,
+            item.location?.placeName,
+            item.location?.address,
+            ...(item.tags || [])
+          ].join(" ").toLowerCase().includes(keyword));
+        }
+
+        if (local.sortKey === "distance" && local.currentPosition) {
+          records = records.map((item) => {
+            const latitude = Number(item.location?.latitude);
+            const longitude = Number(item.location?.longitude);
+            const hasCoordinates = item.hasLocation === true
+              && Number.isFinite(latitude)
+              && Number.isFinite(longitude);
+            return {
+              ...item,
+              distanceKm: hasCoordinates
+                ? distanceBetween(
+                    [local.currentPosition.latitude, local.currentPosition.longitude],
+                    [latitude, longitude]
+                  )
+                : Number.POSITIVE_INFINITY
+            };
+          }).sort(compareDistance);
+        } else {
+          records.sort((a, b) => {
+            const difference = timestamp(b.createdAt) - timestamp(a.createdAt);
+            return local.sortReversed ? -difference : difference;
+          });
+        }
+
+        list.innerHTML = records.length
+          ? records.map(bookmarkRow).join("")
+          : `<div class="card empty">${icon("sparkles")}<p>目前沒有符合條件的收藏。</p></div>`;
+        bindBookmarkRows(refresh);
+      };
+
+      document.querySelector("#home-search").addEventListener("input", (event) => {
+        local.search = event.target.value.trim();
+        refresh();
+      });
+
       sortButton.addEventListener("click", (event) => {
         event.stopPropagation();
         const opening = !sortMenu.classList.contains("show");
         sortMenu.classList.toggle("show", opening);
         sortButton.setAttribute("aria-expanded", String(opening));
       });
+
       sortOptions.forEach((option) => option.addEventListener("click", async (event) => {
         event.stopPropagation();
-        let nextSort = option.dataset.homeSort || "newest";
-        if (nextSort === "distance" && !local.currentPosition) {
+        const nextSortKey = option.dataset.homeSort || "newest";
+
+        if (nextSortKey === "distance" && !local.currentPosition) {
           try {
             sortButton.disabled = true;
             local.currentPosition = await getCurrentPosition();
           } catch (error) {
-            nextSort = "newest";
             showToast(error?.message || "無法取得目前位置。", "error");
+            closeSortMenu();
+            return;
           } finally {
             sortButton.disabled = false;
           }
         }
-        local.sort = nextSort;
-        sortOptions.forEach((item) => item.classList.toggle("active", item.dataset.homeSort === local.sort));
-        sortButton.title = local.sort === "distance" ? "排序：距離最近" : "排序：最新加入";
+
+        if (nextSortKey === local.lastSortSelection) {
+          local.sortReversed = !local.sortReversed;
+        } else {
+          local.sortKey = nextSortKey;
+          local.sortReversed = false;
+        }
+        local.lastSortSelection = nextSortKey;
+
+        updateSortUi();
         closeSortMenu();
         refresh();
+        showToast(`已改為${sortLabel()}。`, "success");
       }));
+
       const onSortOutsidePointer = (event) => {
         if (!sortWrap.contains(event.target)) closeSortMenu();
       };
@@ -1873,11 +1879,13 @@
       document.addEventListener("keydown", onSortEscape);
       state.cleanup.push(() => document.removeEventListener("pointerdown", onSortOutsidePointer));
       state.cleanup.push(() => document.removeEventListener("keydown", onSortEscape));
+
       document.querySelectorAll("[data-filter]").forEach((button) => button.addEventListener("click", () => {
         local.categoryId = button.dataset.filter;
         document.querySelectorAll("[data-filter]").forEach((item) => item.classList.toggle("active", item === button));
         refresh();
       }));
+
       document.querySelector("[data-wishlist-filter]").addEventListener("click", (event) => {
         local.wishlistOnly = !local.wishlistOnly;
         event.currentTarget.classList.toggle("active", local.wishlistOnly);
@@ -1885,6 +1893,8 @@
         event.currentTarget.title = local.wishlistOnly ? "目前只顯示願望清單" : "只看願望清單";
         refresh();
       });
+
+      updateSortUi();
       refresh();
     }
 
@@ -2059,15 +2069,15 @@
         <div class="section-head"><div class="section-title"><span class="section-icon" style="background:var(--mint-soft);color:var(--mint-deep)">${icon("location")}</span><div><h3>地點資訊</h3><small class="muted">輸入店家、景點或地址，<br>可由 Google 搜尋帶入資料</small></div></div></div>
         <div class="form-grid">
           <div class="place-autocomplete-wrap">
-            <label class="field">地點名稱<input id="place-name" autocomplete="off" value="${escapeHtml(place.placeName || "")}" /></label>
+            <label class="field">地點名稱<input id="place-name" name="bookmarkPlaceValue" type="text" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" value="${escapeHtml(place.placeName || "")}" /></label>
             <div id="place-suggestions" class="place-suggestions" role="listbox" aria-label="Google 地點搜尋結果"></div>
           </div>
           <div id="place-search-status" class="metadata-status"></div>
-          <label class="field">地址<input id="place-address" value="${escapeHtml(place.address || "")}" placeholder="沒有地址可留空白" /></label>
+          <label class="field">地址<input id="place-address" name="bookmarkAddressValue" type="text" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" value="${escapeHtml(place.address || "")}" placeholder="沒有地址可留空白" /></label>
           <div class="coordinate-row">
             <label class="field">座標或 Plus Code
               <small>可直接貼上 (24.3523330, 121.7377273) 或完整 Plus Code</small>
-              <input id="place-coordinate" autocapitalize="characters" value="${escapeHtml(formatCoordinate(place.latitude, place.longitude))}" placeholder="(24.3523330, 121.7377273)" />
+              <input id="place-coordinate" name="bookmarkCoordinateValue" type="text" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" value="${escapeHtml(formatCoordinate(place.latitude, place.longitude))}" placeholder="(24.3523330, 121.7377273)" />
             </label>
             <button type="button" class="btn btn-soft" id="parse-coordinate">${icon("location")}解析</button>
           </div>
@@ -2212,22 +2222,22 @@
         title: existing ? "編輯收藏" : "新增收藏",
         subtitle: existing ? "更新內容與地點" : "快速加入你的收藏庫",
         active: "add",
-        content: `<form id="bookmark-form" class="card form-card"><div class="form-body form-grid">
+        content: `<form id="bookmark-form" class="card form-card" autocomplete="off"><div class="form-body form-grid">
           <section class="form-section"><div class="section-head"><div class="section-title"><span class="section-icon">${icon("link")}</span><h3>基本資料</h3></div></div><div class="form-grid">
             <div class="link-fetch-row">
-              <label class="field">短影音連結（選填）<input id="bookmark-url" type="url" value="${escapeHtml(existing?.url || "")}" placeholder="貼上連結" /></label>
+              <label class="field">短影音連結（選填）<input id="bookmark-url" name="bookmarkUrlValue" type="url" inputmode="url" autocomplete="url" autocorrect="off" autocapitalize="none" spellcheck="false" value="${escapeHtml(existing?.url || "")}" placeholder="貼上連結" /></label>
               <button type="button" class="btn btn-soft" id="fetch-metadata">${icon("sparkles")}自動帶入</button>
             </div>
             <div id="metadata-status" class="metadata-status"></div>
             <div id="metadata-preview" class="metadata-preview hidden"></div>
             <div class="form-grid two"><label class="field">平台<select id="bookmark-platform">${Object.entries(PLATFORM_META).map(([value, meta]) => `<option value="${value}" ${(existing?.platform || "other") === value ? "selected" : ""}>${meta.label}</option>`).join("")}</select></label><label class="field">分類<select id="bookmark-category" required>${categoryOptions(existing?.categoryId || state.categories[0]?.id || "other")}</select></label></div>
-            <label class="field">標題<input id="bookmark-title" required maxlength="160" value="${escapeHtml(existing?.title || "")}" placeholder="請輸入標題" /></label>
+            <label class="field">標題<input id="bookmark-title" name="bookmarkTitleValue" type="text" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" required maxlength="160" value="${escapeHtml(existing?.title || "")}" placeholder="請輸入標題" /></label>
             <label class="wishlist-control">
               <input id="bookmark-wishlist" type="checkbox" ${existing?.wishlist ? "checked" : ""} />
               <span class="wishlist-label">${icon("star")}<strong>加入願望清單</strong></span>
             </label>
-            <label class="field">標籤<input id="bookmark-tags" value="${escapeHtml((existing?.tags || []).join(", "))}" placeholder="以逗號分隔，例如：花蓮、瀑布、車宿" /></label>
-            <label class="field">備註<textarea id="bookmark-note" class="bookmark-note-input" placeholder="推薦餐點、交通方式、購買原因或重點摘要…">${escapeHtml(existing?.note || "")}</textarea></label>
+            <label class="field">標籤<input id="bookmark-tags" name="bookmarkTagsValue" type="text" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" value="${escapeHtml((existing?.tags || []).join(", "))}" placeholder="以逗號分隔，例如：花蓮、瀑布、車宿" /></label>
+            <label class="field">備註<textarea id="bookmark-note" name="bookmarkNoteValue" class="bookmark-note-input" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="推薦餐點、交通方式、購買原因或重點摘要…">${escapeHtml(existing?.note || "")}</textarea></label>
           </div></section>
           ${locationSection(placeState)}
           <div id="form-message"></div>
@@ -2892,7 +2902,7 @@
     }
 
     function openEditCategory(category) {
-      openModal(`<h3>編輯分類</h3><div class="form-grid"><label class="field">分類名稱<input id="edit-category-name" maxlength="20" value="${escapeHtml(category.name)}" /></label>${iconPicker("edit-category-icon", categoryIconName(category))}<label class="field">顏色<input id="edit-category-color" class="color-input" type="color" value="${escapeHtml(categoryColor(category))}" /></label></div><div class="form-actions"><button class="btn btn-secondary" id="cancel-category">取消</button><button class="btn btn-primary" id="save-category">儲存</button></div>`, (root, close) => {
+      openModal(`<h3>編輯分類</h3><div class="form-grid"><label class="field">分類名稱<input id="edit-category-name" name="collectionCategoryEditValue" type="text" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" maxlength="20" value="${escapeHtml(category.name)}" /></label>${iconPicker("edit-category-icon", categoryIconName(category))}<label class="field">顏色<input id="edit-category-color" class="color-input" type="color" value="${escapeHtml(categoryColor(category))}" /></label></div><div class="form-actions"><button class="btn btn-secondary" id="cancel-category">取消</button><button class="btn btn-primary" id="save-category">儲存</button></div>`, (root, close) => {
         bindIconPickers(root);
         root.querySelector("#cancel-category").addEventListener("click", close);
         root.querySelector("#save-category").addEventListener("click", async (event) => {
@@ -2922,7 +2932,7 @@
         headerAction: `<button id="logout" class="btn btn-secondary">${icon("logout")}登出</button>`,
         active: "settings",
         content: `<section class="card panel"><div class="section-head"><div class="section-title"><span class="section-icon">${icon("settings")}</span><h2>分類管理</h2></div><span class="small muted">${state.categories.length} 個分類</span></div>
-          <form id="add-category-form" class="category-add"><label class="field"><span class="category-add-label">新增分類</span><input id="new-category-name" maxlength="20" placeholder="分類名稱" required /></label><label class="field"><span class="category-add-label">顏色</span><input id="new-category-color" class="color-input" type="color" value="#ff8066" aria-label="分類顏色" /></label><button class="btn btn-primary" type="submit">${icon("plus")}新增</button>${iconPicker("new-category-icon", "sparkles")}</form>
+          <form id="add-category-form" class="category-add" autocomplete="off"><label class="field"><span class="category-add-label">新增分類</span><input id="new-category-name" name="collectionCategoryValue" type="text" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" maxlength="20" placeholder="分類名稱" required /></label><label class="field"><span class="category-add-label">顏色</span><input id="new-category-color" class="color-input" type="color" value="#ff8066" aria-label="分類顏色" /></label><button class="btn btn-primary" type="submit">${icon("plus")}新增</button>${iconPicker("new-category-icon", "sparkles")}</form>
           <div id="category-sort-list" class="category-list">${state.categories.map((category) => `<div class="category-row" data-category-id="${category.id}">
             <span class="category-order"><button type="button" class="drag-handle" data-drag-category aria-label="拖曳調整順序" title="拖曳調整順序">${icon("drag")}</button></span>
             <span class="category-icon" style="--category-color:${escapeHtml(categoryColor(category))}">${icon(categoryIconName(category))}</span>

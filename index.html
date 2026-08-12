@@ -837,7 +837,25 @@
     }
     .map-result-icon svg { width: 21px; height: 21px; }
     .map-result-copy { min-width: 0; }
-    .map-result-copy strong { display: block; color: var(--text-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .map-result-title {
+      width: 100%;
+      min-height: 0;
+      padding: 0;
+      border: 0;
+      display: block;
+      overflow: hidden;
+      color: var(--text-strong);
+      background: transparent;
+      font: inherit;
+      font-weight: 800;
+      line-height: 1.35;
+      text-align: left;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      cursor: pointer;
+    }
+    .map-result-title:active { color: var(--coral-deep); }
+    .map-result-title:focus-visible { outline: 2px solid var(--coral); outline-offset: 2px; border-radius: 4px; }
     .map-result-copy small { display: block; margin-top: 2px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .map-result-actions { display: flex; gap: 6px; }
     .map-result-actions .btn { width: 42px; min-width: 42px; height: 42px; min-height: 42px; padding: 0; }
@@ -1036,7 +1054,7 @@
       defaultRadiusKm: 20,
       pageSize: 500
     };
-    const APP_BUILD = "2026-07-24-sort-toggle-cleanup-v20";
+    const APP_BUILD = "2026-08-12-category-icons-v22";
     console.info(`[短影音收藏中心] build ${APP_BUILD}`, CONFIG.metadataFunctionUrl);
 
     const ICON_PATHS = {
@@ -1069,6 +1087,8 @@
       health: '<path d="M12 21S4 16 4 9a4 4 0 0 1 7-2.6L12 7.5l1-1.1A4 4 0 0 1 20 9c0 7-8 12-8 12Z"/><path d="M7.5 12h2l1-2 2.2 5 1.3-3h2.5"/>',
       entertainment: '<rect x="3" y="5" width="18" height="15" rx="2"/><path d="m8 2 2 3M14 2l-2 3M8 10l7 3-7 3v-6Z"/>',
       car: '<path d="M5 13h14v5H5z"/><path d="m6 13 2-5h8l2 5"/><circle cx="8" cy="18" r="1.5"/><circle cx="16" cy="18" r="1.5"/>',
+      carcamp: '<path d="M3.5 15.5h14.8l1.7 2.2v1.3H3.5z"/><path d="m5 15.5 1.8-4.2h8.2l2 4.2"/><path d="M8 11.3v4.2M13.5 11.3v4.2"/><circle cx="7" cy="19" r="1.35"/><circle cx="16.5" cy="19" r="1.35"/><path d="M5.2 6.8a3.4 3.4 0 0 0 4.1 4.1 3.8 3.8 0 1 1-4.1-4.1Z"/><path d="m15.8 5 .45 1.05L17.3 6.5l-1.05.45L15.8 8l-.45-1.05-1.05-.45 1.05-.45L15.8 5Z"/><path d="m19.1 8 .3.7.7.3-.7.3-.3.7-.3-.7-.7-.3.7-.3.3-.7Z"/>',
+      cooking: '<path d="M5.2 14.2c0 3.1 2.65 5.6 6.8 5.6s6.8-2.5 6.8-5.6H5.2Z"/><path d="M6.3 14.2c1.6-1 3.55-1.5 5.7-1.5s4.1.5 5.7 1.5"/><path d="m15.2 4.3-4.1 8.6"/><path d="m17.1 5.2-4.3 7.9"/><path d="m14.2 8.4 3.7 1.8"/><path d="m13.2 10.4 3.8 1.8"/>',
       calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/>',
       camera: '<path d="M4 7h4l2-3h4l2 3h4v13H4V7Z"/><circle cx="12" cy="13" r="4"/>',
       note: '<path d="M5 3h14v18H5z"/><path d="M8 8h8M8 12h8M8 16h5"/>',
@@ -1084,8 +1104,8 @@
     const ICON_OPTIONS = [
       ["scenic", "景點"], ["restaurant", "餐廳"], ["lodging", "住宿"], ["shopping", "購物"],
       ["knowledge", "知識"], ["learning", "學習"], ["ai", "AI工具"], ["work", "工作"],
-      ["health", "健康"], ["entertainment", "娛樂"], ["car", "交通"], ["calendar", "活動"],
-      ["camera", "攝影"], ["sparkles", "靈感"], ["other", "其他"]
+      ["health", "健康"], ["entertainment", "娛樂"], ["car", "交通"], ["carcamp", "車泊點"],
+      ["cooking", "料理"], ["calendar", "活動"], ["camera", "攝影"], ["sparkles", "靈感"], ["other", "其他"]
     ];
 
     const DEFAULT_CATEGORIES = [
@@ -2752,10 +2772,21 @@
           const navigationUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${bookmark.location.latitude},${bookmark.location.longitude}`)}`;
           return `<article id="map-result-${escapeHtml(bookmark.id)}" class="map-result-row ${bookmark.id === selected.selectedBookmarkId ? "selected" : ""}" style="--result-color:${escapeHtml(categoryColor(category))}" data-map-result="${escapeHtml(bookmark.id)}">
             <span class="map-result-icon">${icon(categoryIconName(category))}</span>
-            <div class="map-result-copy"><strong>${escapeHtml(bookmark.title || "未命名收藏")}</strong><small>${escapeHtml(bookmark.location?.placeName || "自訂地點")}${bookmark.distanceKm != null ? `・${bookmark.distanceKm.toFixed(bookmark.distanceKm < 10 ? 1 : 0)} km` : ""}</small></div>
+            <div class="map-result-copy"><button type="button" class="map-result-title" data-open-map-bookmark="${escapeHtml(bookmark.id)}" aria-label="查看「${escapeHtml(bookmark.title || "未命名收藏")}」詳細資訊">${escapeHtml(bookmark.title || "未命名收藏")}</button><small>${escapeHtml(bookmark.location?.placeName || "自訂地點")}${bookmark.distanceKm != null ? `・${bookmark.distanceKm.toFixed(bookmark.distanceKm < 10 ? 1 : 0)} km` : ""}</small></div>
             <div class="map-result-actions"><a class="btn btn-icon btn-soft" href="${escapeHtml(bookmark.url)}" target="_blank" rel="noreferrer" aria-label="開啟連結" title="開啟連結">${icon("play")}</a><a class="btn btn-icon btn-primary" href="${navigationUrl}" target="_blank" rel="noreferrer" aria-label="導航" title="導航">${icon("navigation")}</a></div>
           </article>`;
         }).join("") : `<div class="empty">${icon("map")}<p>目前地圖範圍內沒有符合篩選條件的收藏。</p></div>`}</div>`;
+
+        resultsNode.querySelectorAll("[data-open-map-bookmark]").forEach((button) => button.addEventListener("click", () => {
+          const bookmark = records.find((item) => item.id === button.dataset.openMapBookmark);
+          if (!bookmark) return;
+          openBookmarkDetail(bookmark, () => {
+            selected.records = selected.records.filter((item) => item.id !== bookmark.id);
+            if (selected.selectedBookmarkId === bookmark.id) selected.selectedBookmarkId = "";
+            renderMarkers();
+            renderResults();
+          });
+        }));
 
         resultsNode.querySelectorAll("[data-map-result]").forEach((row) => row.addEventListener("click", (event) => {
           if (event.target.closest("a,button")) return;

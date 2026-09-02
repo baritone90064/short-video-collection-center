@@ -1054,7 +1054,7 @@
       defaultRadiusKm: 20,
       pageSize: 500
     };
-    const APP_BUILD = "2026-08-12-category-icons-v22";
+    const APP_BUILD = "2026-09-02-thumbnail-auto-repair-v24";
     console.info(`[短影音收藏中心] build ${APP_BUILD}`, CONFIG.metadataFunctionUrl);
 
     const ICON_PATHS = {
@@ -1184,6 +1184,10 @@
       loadingPromise: null,
       cleanup: []
     };
+
+    // 縮圖自動修復：同一筆收藏在單次 App 執行期間只嘗試一次，避免失敗時重複呼叫 metadata。
+    const thumbnailRepairAttempted = new Set();
+    const thumbnailRepairInFlight = new Map();
 
     function escapeHtml(value = "") {
       return String(value)
@@ -1442,6 +1446,89 @@
       };
     }
 
+
+    function canAutoRepairThumbnail(bookmark) {
+      const url = String(bookmark?.url || "").trim();
+      if (!bookmark?.id || !url) return false;
+      return ["youtube", "instagram", "facebook", "threads"].includes(detectPlatform(url));
+    }
+
+    function waitForImageLoad(url, timeoutMs = 10000) {
+      return new Promise((resolve) => {
+        const probe = new Image();
+        let settled = false;
+        const finish = (ok) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          probe.onload = null;
+          probe.onerror = null;
+          resolve(ok);
+        };
+        const timer = setTimeout(() => finish(false), timeoutMs);
+        probe.onload = () => finish(true);
+        probe.onerror = () => finish(false);
+        probe.src = url;
+      });
+    }
+
+    async function saveRepairedThumbnail(bookmarkId, thumbnailUrl) {
+      // 只更新縮圖，不碰 updatedAt，避免自動修復縮圖改變收藏的「更新日期」。
+      await updateDoc(doc(db, "workspaces", CONFIG.sharedWorkspaceId, "bookmarks", bookmarkId), {
+        thumbnailUrl,
+        thumbnailRefreshedAt: serverTimestamp()
+      });
+    }
+
+    async function repairBookmarkThumbnail(bookmark, thumbContainer) {
+      if (!canAutoRepairThumbnail(bookmark)) return false;
+      const key = String(bookmark.id);
+      if (thumbnailRepairAttempted.has(key)) return false;
+      if (thumbnailRepairInFlight.has(key)) return thumbnailRepairInFlight.get(key);
+
+      thumbnailRepairAttempted.add(key);
+      const task = (async () => {
+        try {
+          const metadata = await fetchVideoMetadata(String(bookmark.url || "").trim());
+          const freshUrl = String(metadata?.thumbnailUrl || inferThumbnailUrl(bookmark.url, detectPlatform(bookmark.url)) || "").trim();
+          if (!freshUrl) return false;
+
+          const loadable = await waitForImageLoad(freshUrl);
+          if (!loadable) return false;
+
+          if (freshUrl !== String(bookmark.thumbnailUrl || "").trim()) {
+            await saveRepairedThumbnail(bookmark.id, freshUrl);
+          }
+
+          bookmark.thumbnailUrl = freshUrl;
+          const current = state.bookmarks.find((item) => item.id === bookmark.id);
+          if (current) current.thumbnailUrl = freshUrl;
+
+          if (thumbContainer?.isConnected) {
+            thumbContainer.innerHTML = `<img src="${escapeHtml(freshUrl)}" alt="" loading="lazy" data-thumb-platform="${escapeHtml(bookmark.platform)}" data-thumb-bookmark-id="${escapeHtml(bookmark.id)}" />`;
+            const restored = thumbContainer.querySelector("img[data-thumb-bookmark-id]");
+            restored?.addEventListener("error", () => {
+              if (restored.parentElement) restored.parentElement.innerHTML = fallbackThumb(bookmark.platform);
+            }, { once: true });
+            thumbContainer.querySelector("img[data-platform-logo]")?.addEventListener("error", (event) => {
+              event.currentTarget.parentElement?.classList.add("logo-failed");
+              event.currentTarget.remove();
+            }, { once: true });
+          }
+          console.info("thumbnail repaired", { bookmarkId: bookmark.id, source: metadata?.source || "metadata" });
+          return true;
+        } catch (error) {
+          console.warn("thumbnail repair failed", { bookmarkId: bookmark?.id, error });
+          return false;
+        } finally {
+          thumbnailRepairInFlight.delete(key);
+        }
+      })();
+
+      thumbnailRepairInFlight.set(key, task);
+      return task;
+    }
+
     function parseTags(value) {
       return [...new Set(String(value || "").split(/[,，\n]/).map((item) => item.trim().replace(/^#/, "")).filter(Boolean))].slice(0, 20);
     }
@@ -1571,7 +1658,7 @@
     function bookmarkRow(bookmark) {
       const categories = categoryMap();
       const category = categories.get(bookmark.categoryId) || { name: "其他", icon: "other", color: "#9a96a1" };
-      const image = bookmark.thumbnailUrl ? `<img src="${escapeHtml(bookmark.thumbnailUrl)}" alt="" loading="lazy" data-thumb-platform="${escapeHtml(bookmark.platform)}" />` : fallbackThumb(bookmark.platform);
+      const image = bookmark.thumbnailUrl ? `<img src="${escapeHtml(bookmark.thumbnailUrl)}" alt="" loading="lazy" data-thumb-platform="${escapeHtml(bookmark.platform)}" data-thumb-bookmark-id="${escapeHtml(bookmark.id)}" />` : fallbackThumb(bookmark.platform);
       const hasLocation = bookmark.hasLocation && bookmark.location?.latitude != null && bookmark.location?.longitude != null;
       const navigationUrl = hasLocation
         ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${bookmark.location.latitude},${bookmark.location.longitude}`)}`
@@ -1713,7 +1800,14 @@
     }
 
     function bindBookmarkRows(refresh) {
-      document.querySelectorAll("img[data-thumb-platform]").forEach((image) => image.addEventListener("error", () => { image.parentElement.innerHTML = fallbackThumb(image.dataset.thumbPlatform); }, { once: true }));
+      document.querySelectorAll("img[data-thumb-platform]").forEach((image) => image.addEventListener("error", () => {
+        const container = image.parentElement;
+        const platform = image.dataset.thumbPlatform;
+        const bookmarkId = image.dataset.thumbBookmarkId;
+        if (container) container.innerHTML = fallbackThumb(platform);
+        const bookmark = state.bookmarks.find((item) => item.id === bookmarkId);
+        if (bookmark && container) void repairBookmarkThumbnail(bookmark, container);
+      }, { once: true }));
       document.querySelectorAll("img[data-platform-logo]").forEach((image) => image.addEventListener("error", () => { image.parentElement?.classList.add("logo-failed"); image.remove(); }, { once: true }));
       document.querySelectorAll("[data-open-bookmark]").forEach((summary) => {
         const open = () => openBookmarkDetail(state.bookmarks.find((item) => item.id === summary.dataset.openBookmark), refresh);
